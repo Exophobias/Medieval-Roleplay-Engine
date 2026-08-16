@@ -11,22 +11,37 @@
 
   <name>Medieval Roleplay Engine</name>
 
+  <!--
+    PATRIAM FORK. The default build targets the Minecraft the server actually runs, which is the
+    whole reason this diverges from upstream. Upstream compiles against spigot-api 1.13.1: that
+    still produces a loadable jar, but it cannot see a method 26.2 removed, so the build goes green
+    and the failure surfaces as a NoSuchMethodError at the first call site a player reaches.
+    Compiling against the deployed version is what turns that into a build error.
+
+    Every source file compiles clean against 26.2 as of 283dfca, so this is a retarget, not a port.
+    tools/build-all.sh asserts the resolved coordinate below matches its EXPECT_PAPER; bump both
+    together or the build fails loudly, which is the intent.
+  -->
   <properties>
-    <java.version>1.8</java.version>
+    <paper.version>26.2.build.92-stable</paper.version>
+    <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <dependencies>
     <dependency>
-      <groupId>org.spigotmc</groupId>
-      <artifactId>spigot-api</artifactId>
-      <version>1.13.1-R0.1-SNAPSHOT</version>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-api</artifactId>
+      <version>${paper.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>me.clip</groupId>
       <artifactId>placeholderapi</artifactId>
-      <version>LATEST</version>
+      <!-- Pinned. Upstream carries LATEST, which Maven deprecates and which re-resolves on every
+           run: the version that compiled the staged jar is then whatever the remote held that
+           minute, and nothing records it. 2.12.3 is what LATEST resolved to on 2026-08-15. -->
+      <version>2.12.3</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -51,8 +66,9 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <source>${java.version}</source>
-          <target>${java.version}</target>
+          <!-- paper-api 26.x is Java 25 bytecode, so `release` rather than source/target: it
+               pins the platform API too, instead of only the language level. -->
+          <release>${java.version}</release>
         </configuration>
       </plugin>
       <plugin>
@@ -82,8 +98,8 @@
 
   <repositories>
     <repository>
-      <id>spigotmc-repo</id>
-      <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
     </repository>
     <repository>
       <id>sonatype</id>
