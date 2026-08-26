@@ -153,16 +153,11 @@ public class ConfigService {
      */
     @Deprecated
     public void saveConfigDefaults() {
-        if (!getConfig().contains(ConfigMigrator.VERSION_KEY, true)
-                || !getConfig().isInt(ConfigMigrator.VERSION_KEY)
-                || getConfig().getInt(ConfigMigrator.VERSION_KEY)
-                != ConfigMigrator.CURRENT_VERSION) {
-            medievalRoleplayEngine.getLogger().warning(
-                    "Refused to copy defaults into a configuration whose schema is not current.");
-            return;
-        }
-        getConfig().options().copyDefaults(true);
-        medievalRoleplayEngine.saveConfig();
+        // Kept only for binary/source compatibility. Appending Bukkit defaults would put newly
+        // shipped keys at the end of the administrator's file and bypass the schema transaction.
+        medievalRoleplayEngine.getLogger().warning(
+                "saveConfigDefaults() is retired; config schema migration owns default placement"
+                        + " and no configuration changes were written.");
     }
 
     public void sendPlayerConfigList(Player player) {

@@ -4,19 +4,33 @@ import dansplugins.rpsystem.storage.AtomicFiles;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.error.YAMLException;
+import org.yaml.snakeyaml.nodes.MappingNode;
+import org.yaml.snakeyaml.nodes.Node;
+import org.yaml.snakeyaml.nodes.NodeTuple;
+import org.yaml.snakeyaml.nodes.ScalarNode;
+import org.yaml.snakeyaml.nodes.Tag;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -92,7 +106,7 @@ public final class ConfigMigrator {
      */
     public static Result upgrade(Path configFile, String bundledYaml, String pluginVersion) {
         return upgrade(configFile, bundledYaml, pluginVersion,
-                AtomicFiles::writeUtf8AtomicRequired);
+                AtomicFiles::writeUtf8AtomicRequiredOwnerOnly);
     }
 
     static Result upgrade(Path configFile, String bundledYaml, String pluginVersion,
@@ -136,14 +150,14 @@ public final class ConfigMigrator {
                     "the plugin jar contains an invalid default config.yml");
         }
 
-        List<String> bundledErrors = validateBundledDefaults(defaults);
+        List<String> bundledErrors = validateBundledDefaults(defaults, bundledYaml);
         if (!bundledErrors.isEmpty()) {
             return new Result(State.ERROR, -1, null,
                     "the plugin jar contains invalid configuration defaults: "
                             + String.join("; ", bundledErrors));
         }
 
-        Version configured = readVersion(installed);
+        Version configured = readPhysicalVersion(installedYaml);
         if (!configured.valid()) {
             return new Result(State.INVALID, -1, null,
                     VERSION_KEY + " must be an unquoted, non-negative integer");
@@ -155,11 +169,12 @@ public final class ConfigMigrator {
         }
 
         int sourceVersion = configured.value();
+        YamlConfiguration migrated = installed;
         if (sourceVersion < CURRENT_VERSION) {
             int workingVersion = sourceVersion;
             while (workingVersion < CURRENT_VERSION) {
                 switch (workingVersion) {
-                    case 0 -> migrateZeroToOne(installed, defaults, pluginVersion);
+                    case 0 -> migrated = migrateZeroToOne(migrated, defaults, pluginVersion);
                     default -> {
                         return new Result(State.ERROR, sourceVersion, null,
                                 "no migration exists from schema v" + workingVersion);
@@ -167,11 +182,11 @@ public final class ConfigMigrator {
                 }
                 workingVersion++;
             }
-            installed.set(VERSION_KEY, CURRENT_VERSION);
-            installed.set("version", pluginVersion);
+            migrated.set(VERSION_KEY, CURRENT_VERSION);
+            migrated.set("version", pluginVersion);
         }
 
-        List<String> errors = validateExplicitValues(installed);
+        List<String> errors = validateExplicitValues(migrated);
         if (!errors.isEmpty()) {
             return new Result(State.INVALID, sourceVersion, null,
                     "invalid configuration: " + String.join("; ", errors));
@@ -193,7 +208,7 @@ public final class ConfigMigrator {
                     "config.yml could not be backed up safely");
         }
         try {
-            writer.write(configFile, installed.saveToString(), installedBytes);
+            writer.write(configFile, migrated.saveToString(), installedBytes);
         } catch (AtomicFiles.FileContentChangedException e) {
             return new Result(State.ERROR, sourceVersion, backup,
                     "config.yml changed while its migration replacement was prepared; stop the "
@@ -269,9 +284,83 @@ public final class ConfigMigrator {
         return new Version(true, (int) whole);
     }
 
-    private static void migrateZeroToOne(YamlConfiguration installed,
-                                          YamlConfiguration defaults,
-                                          String pluginVersion) {
+    /** Physical-file form that distinguishes no marker from an explicit YAML null or duplicate. */
+    private static Version readPhysicalVersion(String physicalText) {
+        final Object root;
+        final Node document;
+        try {
+            LoaderOptions options = new LoaderOptions();
+            options.setAllowDuplicateKeys(false);
+            Yaml yaml = new Yaml(new SafeConstructor(options));
+            root = yaml.load(physicalText);
+            document = yaml.compose(new StringReader(physicalText));
+        } catch (YAMLException failure) {
+            return new Version(false, -1);
+        }
+        if (document == null) {
+            return new Version(true, 0);
+        }
+        if (!(root instanceof Map<?, ?> mapping)
+                || !(document instanceof MappingNode mappingNode)
+                || containsNull(mapping)) {
+            return new Version(false, -1);
+        }
+
+        if (!mapping.containsKey(VERSION_KEY)) {
+            return new Version(true, 0);
+        }
+        Object raw = mapping.get(VERSION_KEY);
+        if (!isIntegerNumber(raw)) {
+            return new Version(false, -1);
+        }
+
+        ScalarNode physicalValue = null;
+        for (NodeTuple tuple : mappingNode.getValue()) {
+            if (tuple.getKeyNode() instanceof ScalarNode key
+                    && VERSION_KEY.equals(key.getValue())) {
+                if (!key.isPlain() || !(tuple.getValueNode() instanceof ScalarNode value)
+                        || !value.isPlain() || !Tag.INT.equals(value.getTag())
+                        || physicalValue != null) {
+                    return new Version(false, -1);
+                }
+                physicalValue = value;
+            }
+        }
+        if (physicalValue == null || !physicalValue.getValue().matches("0|[1-9][0-9]*")) {
+            return new Version(false, -1);
+        }
+        try {
+            int value = Integer.parseInt(physicalValue.getValue());
+            if (((Number) raw).longValue() != value) {
+                return new Version(false, -1);
+            }
+            return new Version(true, value);
+        } catch (NumberFormatException failure) {
+            return new Version(false, -1);
+        }
+    }
+
+    private static boolean containsNull(Object value) {
+        if (value instanceof Map<?, ?> mapping) {
+            for (Map.Entry<?, ?> entry : mapping.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null
+                        || containsNull(entry.getKey()) || containsNull(entry.getValue())) {
+                    return true;
+                }
+            }
+        } else if (value instanceof Collection<?> collection) {
+            for (Object element : collection) {
+                if (element == null || containsNull(element)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static YamlConfiguration migrateZeroToOne(YamlConfiguration installed,
+                                                       YamlConfiguration defaults,
+                                                       String pluginVersion) {
         // Preserve the historical typo's value only when the canonical key is genuinely absent.
         if (!installed.contains("neutralAlertColor", true)
                 && installed.get("neurtalAlertColor") instanceof String legacyColour) {
@@ -280,18 +369,72 @@ public final class ConfigMigrator {
         installed.set("neurtalAlertColor", null);
         installed.set("test", null);
 
-        for (String path : defaults.getKeys(true)) {
-            if (defaults.isConfigurationSection(path)
-                    || VERSION_KEY.equals(path)
-                    || "version".equals(path)
-                    || installed.contains(path, true)) {
+        // The bundled tree is the output skeleton. Updating values already present in that tree
+        // retains its insertion order and latest comments; unknown siblings are copied only after
+        // the known children at their nearest matching section.
+        overlayInstalledValues(defaults, installed);
+        defaults.set("version", pluginVersion);
+        return defaults;
+    }
+
+    private static void overlayInstalledValues(ConfigurationSection target,
+                                               ConfigurationSection installed) {
+        List<String> knownKeys = new ArrayList<>(target.getKeys(false));
+        List<String> installedKeys = new ArrayList<>(installed.getKeys(false));
+
+        for (String key : knownKeys) {
+            if (!installedKeys.contains(key)) {
                 continue;
             }
-            installed.set(path, defaults.get(path));
-            installed.setComments(path, defaults.getComments(path));
-            installed.setInlineComments(path, defaults.getInlineComments(path));
+            Object bundledValue = target.get(key);
+            Object installedValue = installed.get(key);
+            if (bundledValue instanceof ConfigurationSection bundledSection
+                    && installedValue instanceof ConfigurationSection installedSection) {
+                overlayInstalledValues(bundledSection, installedSection);
+                continue;
+            }
+            replaceKnownValue(target, installed, key, installedValue);
         }
-        installed.set("version", pluginVersion);
+
+        for (String key : installedKeys) {
+            if (!knownKeys.contains(key)) {
+                copyUnknownValue(target, installed, key);
+            }
+        }
+    }
+
+    private static void replaceKnownValue(ConfigurationSection target,
+                                          ConfigurationSection installed,
+                                          String key,
+                                          Object installedValue) {
+        List<String> bundledComments = target.getComments(key);
+        List<String> bundledInlineComments = target.getInlineComments(key);
+        if (installedValue instanceof ConfigurationSection installedSection) {
+            ConfigurationSection replacement = target.createSection(key);
+            for (String child : installedSection.getKeys(false)) {
+                copyUnknownValue(replacement, installedSection, child);
+            }
+        } else {
+            target.set(key, installedValue);
+        }
+        target.setComments(key, bundledComments);
+        target.setInlineComments(key, bundledInlineComments);
+    }
+
+    private static void copyUnknownValue(ConfigurationSection target,
+                                         ConfigurationSection installed,
+                                         String key) {
+        Object installedValue = installed.get(key);
+        if (installedValue instanceof ConfigurationSection installedSection) {
+            ConfigurationSection copiedSection = target.createSection(key);
+            for (String child : installedSection.getKeys(false)) {
+                copyUnknownValue(copiedSection, installedSection, child);
+            }
+        } else {
+            target.set(key, installedValue);
+        }
+        target.setComments(key, installed.getComments(key));
+        target.setInlineComments(key, installed.getInlineComments(key));
     }
 
     private static List<String> validateExplicitValues(ConfigurationSection installed) {
@@ -313,9 +456,10 @@ public final class ConfigMigrator {
         return errors;
     }
 
-    private static List<String> validateBundledDefaults(YamlConfiguration defaults) {
+    private static List<String> validateBundledDefaults(YamlConfiguration defaults,
+                                                        String physicalText) {
         List<String> errors = new ArrayList<>();
-        Version version = readVersion(defaults);
+        Version version = readPhysicalVersion(physicalText);
         if (!version.valid() || version.value() != CURRENT_VERSION) {
             errors.add(VERSION_KEY + " must equal " + CURRENT_VERSION);
         }
@@ -379,9 +523,9 @@ public final class ConfigMigrator {
                 "." + configFile.getFileName() + ".v" + sourceVersion + ".bak-", ".tmp");
         boolean promoted = false;
         try {
-            Files.copy(configFile, temporary, StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.COPY_ATTRIBUTES);
-            if (!Arrays.equals(installedBytes, Files.readAllBytes(temporary))) {
+            AtomicFiles.hardenOwnerOnly(temporary);
+            writeForced(temporary, installedBytes);
+            if (!Arrays.equals(installedBytes, Files.readAllBytes(configFile))) {
                 throw new BackupSnapshotChangedException();
             }
             Path backup = nextBackupPath(configFile, sourceVersion);
@@ -392,6 +536,17 @@ public final class ConfigMigrator {
             if (!promoted) {
                 Files.deleteIfExists(temporary);
             }
+        }
+    }
+
+    private static void writeForced(Path target, byte[] bytes) throws IOException {
+        try (FileChannel channel = FileChannel.open(target,
+                StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
+            }
+            channel.force(true);
         }
     }
 

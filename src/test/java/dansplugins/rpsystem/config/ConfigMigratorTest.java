@@ -10,8 +10,17 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.UserPrincipal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -66,6 +75,15 @@ class ConfigMigratorTest {
                 .contains("retained comment"));
         assertTrue(upgraded.contains("planIntegrationEnabled", true));
 
+        List<String> expectedOrder = new ArrayList<>(
+                parse(bundledConfig()).getKeys(false));
+        expectedOrder.add("private-extension");
+        assertEquals(expectedOrder, new ArrayList<>(upgraded.getKeys(false)),
+                "known keys must follow the bundled template and unknown roots come last");
+        assertEquals(parse(bundledConfig()).getComments("planIntegrationEnabled"),
+                upgraded.getComments("planIntegrationEnabled"),
+                "a newly introduced key keeps its current bundled placement and comments");
+
         ConfigMigrator.Result second = ConfigMigrator.upgrade(
                 config, bundledConfig(), "v2.0.0-newer");
         assertEquals(ConfigMigrator.State.CURRENT, second.state());
@@ -103,6 +121,31 @@ class ConfigMigratorTest {
     }
 
     @Test
+    void aFlowRootCurrentMarkerIsAcceptedWithoutRewrite() throws Exception {
+        Path config = write("{config-version: 1, version: existing}\n");
+        byte[] original = Files.readAllBytes(config);
+
+        ConfigMigrator.Result result = ConfigMigrator.upgrade(
+                config, bundledConfig(), "v2.0.0-newer");
+
+        assertEquals(ConfigMigrator.State.CURRENT, result.state());
+        assertArrayEquals(original, Files.readAllBytes(config));
+        assertNull(result.backup());
+    }
+
+    @Test
+    void secretBearingMigrationFilesAreOwnerOnly() throws Exception {
+        Path config = write("private-extension:\n  api-key: keep-secret\n");
+
+        ConfigMigrator.Result result = ConfigMigrator.upgrade(
+                config, bundledConfig(), "v2.0.0-test");
+
+        assertEquals(ConfigMigrator.State.UPGRADED, result.state());
+        assertOwnerOnly(config);
+        assertOwnerOnly(result.backup());
+    }
+
+    @Test
     void currentConfigurationCanUseAndEditBundledDefaultsWithoutARewrite() throws Exception {
         Path config = write("config-version: 1\nversion: existing\n");
 
@@ -134,7 +177,8 @@ class ConfigMigratorTest {
     @Test
     void quotedFractionalNegativeOrBooleanSchemaVersionsAreRejected() throws Exception {
         int index = 0;
-        for (String value : new String[]{"'1'", "1.0", "1.5", "-1", "true"}) {
+        for (String value : new String[]{"'1'", "1.0", "1.5", "-1", "true", "null",
+                "", "~", "!!int \"1\""}) {
             Path config = temporaryDirectory.resolve("config-" + index++ + ".yml");
             Files.writeString(config, "config-version: " + value + "\n");
             String original = Files.readString(config);
@@ -145,6 +189,40 @@ class ConfigMigratorTest {
             assertEquals(ConfigMigrator.State.INVALID, result.state(), value);
             assertEquals(original, Files.readString(config), value);
         }
+    }
+
+    @Test
+    void duplicateSchemaDeclarationsAreRejectedWithoutAWrite() throws Exception {
+        int index = 0;
+        for (String document : List.of(
+                "config-version: 2\nconfig-version: 0\n",
+                "config-version: 2\n\"config-version\": 0\n",
+                "config-version: 2\n\"config\\u002dversion\": 0\n",
+                "\"config-version\": 1\n")) {
+            Path config = temporaryDirectory.resolve("duplicate-" + index++ + ".yml");
+            Files.writeString(config, document);
+            String original = Files.readString(config);
+
+            ConfigMigrator.Result result = ConfigMigrator.upgrade(
+                    config, bundledConfig(), "v2.0.0-test");
+
+            assertEquals(ConfigMigrator.State.INVALID, result.state(), document);
+            assertEquals(original, Files.readString(config), document);
+        }
+        assertEquals(4, fileCount());
+    }
+
+    @Test
+    void nullExtensionValueIsRejectedRatherThanSilentlyDeleted() throws Exception {
+        Path config = write("extension: null\n");
+        String original = Files.readString(config);
+
+        ConfigMigrator.Result result = ConfigMigrator.upgrade(
+                config, bundledConfig(), "v2.0.0-test");
+
+        assertEquals(ConfigMigrator.State.INVALID, result.state());
+        assertEquals(original, Files.readString(config));
+        assertEquals(1, fileCount());
     }
 
     @Test
@@ -301,6 +379,27 @@ class ConfigMigratorTest {
         try (Stream<Path> files = Files.list(temporaryDirectory)) {
             return files.count();
         }
+    }
+
+    private static void assertOwnerOnly(Path file) throws IOException {
+        PosixFileAttributeView posix = Files.getFileAttributeView(file,
+                PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        if (posix != null) {
+            assertEquals(Set.of(PosixFilePermission.OWNER_READ,
+                            PosixFilePermission.OWNER_WRITE),
+                    Files.getPosixFilePermissions(file));
+            return;
+        }
+
+        AclFileAttributeView acl = Files.getFileAttributeView(file,
+                AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        assertNotNull(acl, "filesystem exposes neither POSIX permissions nor a Windows ACL");
+        UserPrincipal owner = Files.getOwner(file, LinkOption.NOFOLLOW_LINKS);
+        List<AclEntry> entries = acl.getAcl();
+        assertFalse(entries.isEmpty(), "owner-only ACL grants nobody access");
+        assertTrue(entries.stream().filter(entry -> entry.type() == AclEntryType.ALLOW)
+                        .allMatch(entry -> entry.principal().equals(owner)),
+                () -> "a non-owner has an allow ACL on " + file + ": " + entries);
     }
 
     private static YamlConfiguration strictLoad(Path path) throws Exception {

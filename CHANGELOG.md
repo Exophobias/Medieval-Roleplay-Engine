@@ -25,6 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Current cards and manifests are written atomically on each edit, indexed by account, character
   and cached account name, and exposed to asynchronous readers only as immutable snapshots.
+- Config migration now writes known options and comments in the latest bundled order while
+  preserving explicit administrator values and retaining unknown keys after known siblings.
 - The Patriam package is character-focused. Commands owned by PatriamChat, PatriamPost or vanilla
   are no longer registered, and the unused shaded Mailboxes dependency has been removed.
 - Legacy free-text religion is retained on disk for compatibility but hidden by default because

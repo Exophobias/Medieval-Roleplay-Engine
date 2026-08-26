@@ -5,8 +5,9 @@ All options are set in the `plugins/MedievalRoleplayEngine/config.yml` file. Opt
 Options can also be inspected and changed in-game by an operator with `/rpconfig show` and `/rpconfig set <option> <value>`; changes made that way are written straight back to `config.yml`.
 
 The defaults below are those written when the plugin creates `config.yml` for the first time. An
-ordered schema migration backfills missing options when an older `config.yml` is carried across a
-plugin upgrade, while preserving explicit administrator values and unknown extension keys.
+ordered schema migration rebuilds an older `config.yml` in the latest bundled order and with the
+latest bundled comments. It overlays explicit administrator values and retains unknown extension
+keys after the known options in their nearest matching section.
 
 The integer `config-version` is the configuration schema and is independent of the plugin release.
 An unversioned file is schema 0. Before changing an older file, the plugin writes a byte-identical
