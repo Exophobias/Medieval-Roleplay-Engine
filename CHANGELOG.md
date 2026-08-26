@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (Patriam fork)
+
+- Stable character IDs, immutable lifecycle snapshots, a Bukkit `CharacterService`, and durable
+  character-created, updated, and ended events.
+- Append-only deceased-character history and idempotent integration with PatriamUtils' approved
+  TrueDeath service/event, including first-deployment adoption and periodic missed-event replay.
+- An optional Plan DataExtension for public-safe current characters, player history, and a staff
+  overview. Drafts, religion and TrueDeath moderation metadata are excluded.
+- Migration and integrity tests for both historical seven-line cards and the new metadata format.
+- Public-safe PlaceholderAPI fields and explicit audience projections used by Plan and the
+  NamelessMC bridge.
+
+### Changed (Patriam fork)
+
+- Current cards and manifests are written atomically on each edit, indexed by account, character
+  and cached account name, and exposed to asynchronous readers only as immutable snapshots.
+- The Patriam package is character-focused. Commands owned by PatriamChat, PatriamPost or vanilla
+  are no longer registered, and the unused shaded Mailboxes dependency has been removed.
+- Legacy free-text religion is retained on disk for compatibility but hidden by default because
+  PatriamReligion is authoritative and may intentionally conceal a faith.
+- The Docker smoke-test environment now uses Java 25 and checksum-verified Paper 26.2 build 92
+  instead of compiling against and launching Spigot 1.20.6.
+
 ### Fixed
 
 - `emoteColor` and `logChat` are now backfilled with the same values a fresh install is given. A server upgrading from a version that predates either option was given `emoteColor: yellow` and `logChat: false`, while a fresh install was given `emoteColor: gray` and `logChat: true` — the values `CONFIG.md` documents. Both paths now write the documented values. Servers that already have either option set in `config.yml` are unaffected, since only missing options are backfilled.

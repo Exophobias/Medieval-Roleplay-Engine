@@ -71,7 +71,7 @@ public class ConfigService {
             getConfig().addDefault("negativeAlertColor", "red");
         }
         if (!getConfig().isBoolean("chatFeaturesEnabled")) {
-            getConfig().addDefault("chatFeaturesEnabled", true);
+            getConfig().addDefault("chatFeaturesEnabled", false);
         }
         if (!getConfig().isBoolean("debugMode")) {
             getConfig().addDefault("debugMode", false);
@@ -81,6 +81,18 @@ public class ConfigService {
         }
         if (!getConfig().isBoolean("logChat")) {
             getConfig().addDefault("logChat", true);
+        }
+        if (!getConfig().isBoolean("trueDeathIntegrationEnabled")) {
+            getConfig().addDefault("trueDeathIntegrationEnabled", true);
+        }
+        if (!getConfig().isBoolean("planIntegrationEnabled")) {
+            getConfig().addDefault("planIntegrationEnabled", true);
+        }
+        if (!getConfig().isBoolean("legacyReligionFieldEnabled")) {
+            getConfig().addDefault("legacyReligionFieldEnabled", false);
+        }
+        if (!getConfig().isBoolean("exposeReligionPlaceholder")) {
+            getConfig().addDefault("exposeReligionPlaceholder", false);
         }
         
         deleteOldConfigOptionsIfPresent();
@@ -112,13 +124,32 @@ public class ConfigService {
                     || option.equalsIgnoreCase("emoteRadius")
                     || option.equalsIgnoreCase("localOOCChatRadius")
                     || option.equalsIgnoreCase("birdSpeed")) {
-                getConfig().set(option, Integer.parseInt(value));
+                int parsed;
+                try {
+                    parsed = Integer.parseInt(value);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ChatColor.RED + "That value must be an integer.");
+                    return;
+                }
+                if (parsed < 0 || (option.equalsIgnoreCase("birdSpeed") && parsed == 0)) {
+                    player.sendMessage(ChatColor.RED + "That value must be positive.");
+                    return;
+                }
+                getConfig().set(option, parsed);
                 player.sendMessage(medievalRoleplayEngine.colorChecker.getColorByName(getString("positiveAlertColor")) + "Integer set!");
             }
             else if (option.equalsIgnoreCase("rightClickToViewCard")
                     || option.equalsIgnoreCase("chatFeaturesEnabled")
                     || option.equalsIgnoreCase("debugMode")
-                    || option.equalsIgnoreCase("logChat")) {
+                    || option.equalsIgnoreCase("logChat")
+                    || option.equalsIgnoreCase("trueDeathIntegrationEnabled")
+                    || option.equalsIgnoreCase("planIntegrationEnabled")
+                    || option.equalsIgnoreCase("legacyReligionFieldEnabled")
+                    || option.equalsIgnoreCase("exposeReligionPlaceholder")) {
+                if (!value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
+                    player.sendMessage(ChatColor.RED + "That value must be true or false.");
+                    return;
+                }
                 getConfig().set(option, Boolean.parseBoolean(value));
                 player.sendMessage(medievalRoleplayEngine.colorChecker.getColorByName(getString("positiveAlertColor")) + "Boolean set!");
             }
@@ -157,10 +188,14 @@ public class ConfigService {
         getConfig().addDefault("positiveAlertColor", "green");
         getConfig().addDefault("neutralAlertColor", "aqua");
         getConfig().addDefault("negativeAlertColor", "red");
-        getConfig().addDefault("chatFeaturesEnabled", true);
+        getConfig().addDefault("chatFeaturesEnabled", false);
         getConfig().addDefault("debugMode", false);
         getConfig().addDefault("birdSpeed", 20);
         getConfig().addDefault("logChat", true);
+        getConfig().addDefault("trueDeathIntegrationEnabled", true);
+        getConfig().addDefault("planIntegrationEnabled", true);
+        getConfig().addDefault("legacyReligionFieldEnabled", false);
+        getConfig().addDefault("exposeReligionPlaceholder", false);
         getConfig().options().copyDefaults(true);
         medievalRoleplayEngine.saveConfig();
     }
@@ -169,6 +204,10 @@ public class ConfigService {
         player.sendMessage(medievalRoleplayEngine.colorChecker.getColorByName(getString("neutralAlertColor")) + "version: " + getConfig().getString("version")
                 + ", debugMode: " + getConfig().getBoolean("debugMode")
                 + ", chatFeaturesEnabled: " + getConfig().getBoolean("chatFeaturesEnabled")
+                + ", trueDeathIntegrationEnabled: " + getConfig().getBoolean("trueDeathIntegrationEnabled")
+                + ", planIntegrationEnabled: " + getConfig().getBoolean("planIntegrationEnabled")
+                + ", legacyReligionFieldEnabled: " + getConfig().getBoolean("legacyReligionFieldEnabled")
+                + ", exposeReligionPlaceholder: " + getConfig().getBoolean("exposeReligionPlaceholder")
                 + ", localChatRadius: " + getConfig().getInt("localChatRadius")
                 + ", whisperChatRadius: " + getConfig().getInt("whisperChatRadius")
                 + ", yellChatRadius: " + getConfig().getInt("yellChatRadius")

@@ -1,82 +1,133 @@
 name: MedievalRoleplayEngine
 version: '${project.version}'
-author: DanTheTechMan
+description: Character cards and lifecycle services for roleplay servers.
+authors: [DanTheTechMan, Exophobias]
+website: https://github.com/Exophobias/Medieval-Roleplay-Engine
 main: dansplugins.rpsystem.MedievalRoleplayEngine
-api-version: "1.13"
-softdepend: [PlaceholderAPI, MedievalFactions, Mailboxes]
+# Match the API used at compile time; older servers must reject this Java 25/Paper 26.2 build.
+api-version: "26.2"
+
+# All integrations are optional. Listing them here only establishes safe load order when present.
+# PatriamChat owns chat, PatriamPost owns couriers, and vanilla owns /title.
+softdepend:
+  - PlaceholderAPI
+  - Plan
+  - PatriamUtils
 
 commands:
   card:
-  bird:
-  local:
-  rp:
-  global:
-  ooc:
+    description: View or update a character card.
+    usage: /card [help|lookup|name|race|subculture|religion|age|gender|forcesave|forceload]
   emote:
+    description: Describe a nearby roleplay action.
+    usage: /emote <action>
   me:
+    description: Describe a nearby roleplay action.
+    usage: /me <action>
   roll:
-    description: Roll a die. Defaults to a d20 if no max is specified.
-    usage: /roll [max]
+    description: Roll a die. Defaults to a d20 if no maximum is specified.
+    usage: /roll [maximum]
   dice:
-    description: Roll a die. Defaults to a d20 if no max is specified.
-    usage: /dice [max]
-  title:
-  yell:
-  whisper:
+    description: Roll a die. Defaults to a d20 if no maximum is specified.
+    usage: /dice [maximum]
   rphelp:
+    description: Show Medieval Roleplay Engine help.
+    usage: /rphelp
   rpconfig:
-  lo:
+    description: View or change Medieval Roleplay Engine configuration.
+    usage: /rpconfig <show|set> [option] [value]
 
 permissions:
-  rp.bird:
-    default: true
+  # Compatibility aggregates used by the command implementation. They are not granted by
+  # default; the individual player permissions below preserve the upstream defaults.
+  rp.default:
+    description: Grants the normal player-facing Medieval Roleplay Engine features.
+    default: false
+    children:
+      rp.card.*: true
+      rp.emote: true
+      rp.me: true
+      rp.roll: true
+      rp.dice: true
+      rp.help: true
+      rp.rphelp: true
+  rp.card.*:
+    description: Grants all non-administrative character-card operations.
+    default: false
+    children:
+      rp.card.show: true
+      rp.card.lookup: true
+      rp.card.show.others: true
+      rp.card.help: true
+      rp.card.name: true
+      rp.card.race: true
+      rp.card.subculture: true
+      rp.card.religion: true
+      rp.card.age: true
+      rp.card.gender: true
+  rp.admin:
+    description: Grants Medieval Roleplay Engine administrative operations.
+    default: op
+    children:
+      rp.card.forcesave: true
+      rp.card.forceload: true
+      rp.config: true
+
   rp.card.show:
+    description: View your current character card.
     default: true
   rp.card.lookup:
+    description: Look up another player's character card.
+    default: true
+  rp.card.show.others:
+    description: View another player's card by right-clicking them.
     default: true
   rp.card.help:
+    description: View character-card help.
     default: true
   rp.card.name:
+    description: Change your character name.
     default: true
   rp.card.race:
+    description: Change your character race.
     default: true
   rp.card.subculture:
+    description: Change your character subculture.
     default: true
   rp.card.religion:
+    description: Change the legacy free-text religion field.
     default: true
   rp.card.age:
+    description: Change your character age.
     default: true
   rp.card.gender:
-    default: true
-  rp.local:
-    default: true
-  rp.rp:
-    default: true
-  rp.global:
-    default: true
-  rp.ooc:
+    description: Change your character gender.
     default: true
   rp.emote:
+    description: Use /emote.
     default: true
   rp.me:
+    description: Use /me.
     default: true
   rp.roll:
+    description: Use /roll.
     default: true
   rp.dice:
-    default: true
-  rp.title:
-    default: true
-  rp.yell:
-    default: true
-  rp.whisper:
+    description: Use /dice.
     default: true
   rp.help:
+    description: Use /rphelp.
     default: true
-  rp.localOOC:
+  rp.rphelp:
+    description: Compatibility permission for /rphelp.
     default: true
+
   rp.card.forcesave:
+    description: Force current character cards to be saved.
     default: op
   rp.card.forceload:
+    description: Force current character cards to be reloaded.
     default: op
   rp.config:
+    description: View or change plugin configuration.
     default: op

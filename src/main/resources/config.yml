@@ -1,0 +1,42 @@
+# This value is filtered by Maven and is used to migrate missing configuration keys safely.
+version: 'v${project.version}'
+
+# Character-card behaviour.
+changeNameCooldown: 300
+rightClickToViewCard: true
+
+# Optional lifecycle and presentation integrations. Each is a clean no-op when its plugin is absent.
+trueDeathIntegrationEnabled: true
+planIntegrationEnabled: true
+
+# The historical free-text religion value is retained for migration only. PatriamReligion is the
+# live authority and may intentionally hide a faith, so generic public placeholders must not leak it.
+legacyReligionFieldEnabled: false
+exposeReligionPlaceholder: false
+
+# PatriamChat owns local, global, OOC, whisper and yell chat. Keep the legacy MRE listener off.
+# Existing installations which already have this key set to true must change it explicitly.
+chatFeaturesEnabled: false
+
+# /emote and /me remain part of this character-focused package.
+emoteRadius: 25
+emoteColor: gray
+
+# Operator feedback and diagnostics.
+positiveAlertColor: green
+neutralAlertColor: aqua
+negativeAlertColor: red
+debugMode: false
+logChat: true
+
+# Retained so older configs can be read and rolled back without losing their settings. The
+# corresponding commands are deliberately not registered in the Patriam package.
+localChatRadius: 25
+whisperChatRadius: 2
+yellChatRadius: 50
+localOOCChatRadius: 25
+localChatColor: gray
+whisperChatColor: blue
+yellChatColor: red
+localOOCChatColor: gray
+birdSpeed: 20

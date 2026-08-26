@@ -1,24 +1,33 @@
-FROM maven:3.8-eclipse-temurin-21-alpine
+FROM maven:3.9-eclipse-temurin-25-alpine AS plugin-build
 
-# Install dependencies g`
-RUN apk add --no-cache git wget
-
-# Build server
-WORKDIR /testmcserver-build
-RUN wget -O BuildTools.jar https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
-RUN git config --global --unset core.autocrlf || :
-RUN java -jar BuildTools.jar --rev 1.20.6
-
-# Build plugin
 WORKDIR /mre-build
 COPY . .
-RUN mvn package
+RUN mvn --batch-mode clean verify
 
-# Copy resources and make post-create.sh executable
+FROM eclipse-temurin:25-jre-alpine
+
+ARG PAPER_VERSION=26.2
+ARG PAPER_BUILD=92
+ARG PAPER_USER_AGENT="Exophobias-MRE-test-container/2.0 (https://github.com/Exophobias/Medieval-Roleplay-Engine)"
+RUN apk add --no-cache curl jq \
+    && builds="$(curl --fail --silent --show-error \
+        --header "User-Agent: ${PAPER_USER_AGENT}" \
+        "https://fill.papermc.io/v3/projects/paper/versions/${PAPER_VERSION}/builds")" \
+    && url="$(printf '%s' "$builds" | jq --exit-status --raw-output \
+        --argjson build "$PAPER_BUILD" \
+        'first(.[] | select(.id == $build) | .downloads."server:default".url)')" \
+    && checksum="$(printf '%s' "$builds" | jq --exit-status --raw-output \
+        --argjson build "$PAPER_BUILD" \
+        'first(.[] | select(.id == $build) | .downloads."server:default".checksums.sha256)')" \
+    && curl --fail --location --show-error \
+        --header "User-Agent: ${PAPER_USER_AGENT}" \
+        --output /paper.jar "$url" \
+    && printf '%s  /paper.jar\n' "$checksum" | sha256sum --check --strict
+
+COPY --from=plugin-build /mre-build/target/Medieval-Roleplay-Engine-*.jar /plugin.jar
 COPY ./.testcontainer /resources
 RUN chmod +x /resources/post-create.sh
 
-# Run server
 WORKDIR /testmcserver
 EXPOSE 25565
-ENTRYPOINT /resources/post-create.sh
+ENTRYPOINT ["/resources/post-create.sh"]

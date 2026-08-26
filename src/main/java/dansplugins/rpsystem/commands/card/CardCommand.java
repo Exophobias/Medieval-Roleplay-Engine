@@ -1,6 +1,7 @@
 package dansplugins.rpsystem.commands.card;
 
 import dansplugins.rpsystem.MedievalRoleplayEngine;
+import dansplugins.rpsystem.api.CharacterRecord;
 import dansplugins.rpsystem.cards.CharacterCard;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -51,7 +52,9 @@ public class CardCommand {
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card subculture (subculture) - Change your character's subculture.");
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card age (age) - Change your character's age.");
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card gender (gender) - Change your character's gender.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card religion (religion) - Change your character's religion.");
+            if (medievalRoleplayEngine.getConfig().getBoolean("legacyReligionFieldEnabled", false)) {
+                sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card religion (religion) - Change the legacy biography religion field.");
+            }
         }
         else {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sorry! In order to use this command, you need the following permission: 'rp.card.help'");
@@ -84,19 +87,28 @@ public class CardCommand {
             return;
         }
 
+        CharacterRecord previous = card.snapshot();
         card.setName(medievalRoleplayEngine.argumentParser.createStringFromFirstArgOnwards(args, 1));
+        if (!medievalRoleplayEngine.persistCharacterUpdate(card, previous)) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor()
+                    + "Your character could not be saved, so the change was not applied.");
+            return;
+        }
         player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor() + "Name set! Type /card to see changes.");
 
-        int changeNameCooldown = medievalRoleplayEngine.configService.getInt("changeNameCooldown");
+        int changeNameCooldown = Math.max(0,
+                medievalRoleplayEngine.configService.getInt("changeNameCooldown"));
         if (changeNameCooldown != 0) {
             medievalRoleplayEngine.ephemeralData.getPlayersOnNameChangeCooldown().add(player.getUniqueId());
-            getServer().getScheduler().runTaskLater(medievalRoleplayEngine, new Runnable() {
-                @Override
-                public void run() {
-                    medievalRoleplayEngine.ephemeralData.getPlayersOnNameChangeCooldown().remove(player.getUniqueId());
-                    player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor() + "You can now change your character's name again.");
+            UUID playerId = player.getUniqueId();
+            getServer().getScheduler().runTaskLater(medievalRoleplayEngine, () -> {
+                medievalRoleplayEngine.ephemeralData.getPlayersOnNameChangeCooldown().remove(playerId);
+                Player online = getServer().getPlayer(playerId);
+                if (online != null) {
+                    online.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor()
+                            + "You can now change your character's name again.");
                 }
-            }, changeNameCooldown * 20);
+            }, changeNameCooldown * 20L);
         }
     }
 
@@ -111,6 +123,11 @@ public class CardCommand {
     }
 
     public void changeReligion(CommandSender sender, String[] args) {
+        if (!medievalRoleplayEngine.getConfig().getBoolean("legacyReligionFieldEnabled", false)) {
+            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor()
+                    + "Religion is managed by PatriamReligion, not the character biography.");
+            return;
+        }
         applyStringCardChange(sender, args, "rp.card.religion", "religion",
                 (card, value) -> card.setReligion(value));
     }
@@ -148,7 +165,18 @@ public class CardCommand {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Must be a number.");
             return;
         }
+        if (newAge < 0 || newAge > 1_000_000) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor()
+                    + "Age must be between 0 and 1000000.");
+            return;
+        }
+        CharacterRecord previous = card.snapshot();
         card.setAge(newAge);
+        if (!medievalRoleplayEngine.persistCharacterUpdate(card, previous)) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor()
+                    + "Your character could not be saved, so the change was not applied.");
+            return;
+        }
         player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor() + "Age set! Type /card to see changes.");
     }
 
@@ -168,15 +196,11 @@ public class CardCommand {
             return;
         }
 
-        UUID targetUUID = medievalRoleplayEngine.uuidChecker.findUUIDBasedOnPlayerName(medievalRoleplayEngine.argumentParser.createStringFromFirstArgOnwards(args, 1));
-        if (targetUUID == null) {
+        String targetName = medievalRoleplayEngine.argumentParser.createStringFromFirstArgOnwards(args, 1);
+        CharacterCard card = medievalRoleplayEngine.cardRepository
+                .getCardByLastKnownPlayerName(targetName);
+        if (card == null || !card.snapshot().isPubliclyVisible()) {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "That player wasn't found.");
-            return;
-        }
-
-        CharacterCard card = medievalRoleplayEngine.cardLookupService.lookup(targetUUID);
-        if (card == null) {
-            player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "That player doesn't have a card.");
             return;
         }
 
@@ -192,6 +216,8 @@ public class CardCommand {
         if (player.hasPermission("rp.card.forcesave") || player.hasPermission("rp.admin")) {
             medievalRoleplayEngine.storageService.saveCardFileNames();
             medievalRoleplayEngine.storageService.saveCards();
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor()
+                    + "Character cards saved.");
             return true;
         }
         else {
@@ -208,6 +234,10 @@ public class CardCommand {
 
         if (player.hasPermission("rp.card.forceload") || player.hasPermission("rp.admin")) {
             medievalRoleplayEngine.storageService.loadCards();
+            medievalRoleplayEngine.characterHistoryRepository.load();
+            medievalRoleplayEngine.refreshAllCharacterViews();
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor()
+                    + "Current cards and character history reloaded.");
             return true;
         }
         else {
@@ -240,7 +270,13 @@ public class CardCommand {
             return;
         }
 
+        CharacterRecord previous = card.snapshot();
         setter.apply(card, medievalRoleplayEngine.argumentParser.createStringFromFirstArgOnwards(args, 1));
+        if (!medievalRoleplayEngine.persistCharacterUpdate(card, previous)) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor()
+                    + "Your character could not be saved, so the change was not applied.");
+            return;
+        }
         player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor()
                 + capitalize(fieldName) + " set! Type /card to see changes.");
     }

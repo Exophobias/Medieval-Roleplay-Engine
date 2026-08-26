@@ -1,22 +1,19 @@
-echo "Running 'post-create.sh' script..."
-if [ -z "$(ls -A /testmcserver)" ]; then
-    echo "Setting up server..."
-    # Copy server JAR
-    cp /testmcserver-build/spigot-1.20.6.jar /testmcserver/spigot-1.20.6.jar
+#!/bin/sh
+set -eu
 
-    # Create plugins directory
-    mkdir /testmcserver/plugins
+server_jar=/testmcserver/paper-26.2-build-92.jar
+mkdir -p /testmcserver/plugins
 
-    # Install MedievalRoleplayEngine
-    cp /mre-build/target/Medieval-Roleplay-Engine-*.jar /testmcserver/plugins
-
-    # Copy config files
-    cp /resources/ops.json /testmcserver
-
-    # Accept EULA
-    cd /testmcserver && echo "eula=true" > eula.txt
-else
-    echo "Server is already set up."
+if [ ! -f "$server_jar" ]; then
+    cp /paper.jar "$server_jar"
 fi
 
-java -jar /testmcserver/spigot-1.20.6.jar
+# Refresh only this plugin when a persisted test-server directory is reused.
+cp /plugin.jar /testmcserver/plugins/Medieval-Roleplay-Engine.jar
+
+if [ ! -f /testmcserver/ops.json ]; then
+    cp /resources/ops.json /testmcserver/ops.json
+fi
+printf 'eula=true\n' > /testmcserver/eula.txt
+
+exec java -jar "$server_jar" --nogui

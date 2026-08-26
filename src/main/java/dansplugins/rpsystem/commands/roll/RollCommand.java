@@ -5,7 +5,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,8 +23,6 @@ public class RollCommand {
     );
 
     private final MedievalRoleplayEngine medievalRoleplayEngine;
-    private final Random random = new Random();
-
     public RollCommand(MedievalRoleplayEngine medievalRoleplayEngine) {
         this.medievalRoleplayEngine = medievalRoleplayEngine;
     }
@@ -117,7 +115,7 @@ public class RollCommand {
     private int[] rollDice(int numDice, int dieSize) {
         int[] results = new int[numDice];
         for (int i = 0; i < numDice; i++) {
-            results[i] = random.nextInt(dieSize) + 1;
+            results[i] = ThreadLocalRandom.current().nextInt(1, dieSize + 1);
         }
         return results;
     }

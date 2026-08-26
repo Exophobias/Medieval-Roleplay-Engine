@@ -1,18 +1,11 @@
 package dansplugins.rpsystem.commands;
 
 import dansplugins.rpsystem.MedievalRoleplayEngine;
-import dansplugins.rpsystem.commands.bird.BirdCommand;
 import dansplugins.rpsystem.commands.card.CardCommand;
 import dansplugins.rpsystem.commands.config.ConfigCommand;
 import dansplugins.rpsystem.commands.emote.EmoteCommand;
-import dansplugins.rpsystem.commands.global.GlobalChatCommand;
 import dansplugins.rpsystem.commands.help.HelpCommand;
-import dansplugins.rpsystem.commands.local.LocalChatCommand;
-import dansplugins.rpsystem.commands.localooc.LocalOOCChatCommand;
 import dansplugins.rpsystem.commands.roll.RollCommand;
-import dansplugins.rpsystem.commands.title.TitleCommand;
-import dansplugins.rpsystem.commands.whisper.WhisperCommand;
-import dansplugins.rpsystem.commands.yell.YellCommand;
 import org.bukkit.command.CommandSender;
 
 public class CommandService {
@@ -81,21 +74,9 @@ public class CommandService {
             }
         }
 
-        if (label.equalsIgnoreCase("bird")) {
-            BirdCommand command = new BirdCommand(medievalRoleplayEngine);
-            command.sendBird(sender, args);
-            return true;
-        }
-
         if (label.equalsIgnoreCase("roll") || label.equalsIgnoreCase("dice")) {
             RollCommand command = new RollCommand(medievalRoleplayEngine);
             return command.rollDice(sender, args);
-        }
-
-        if (label.equalsIgnoreCase("title")) {
-            TitleCommand command = new TitleCommand(medievalRoleplayEngine);
-            command.titleBook(sender, args);
-            return true;
         }
 
         if (label.equalsIgnoreCase("rpconfig")) {
@@ -104,39 +85,9 @@ public class CommandService {
             return true;
         }
 
-        if (medievalRoleplayEngine.configService.getBoolean("chatFeaturesEnabled")) {
-            if (label.equalsIgnoreCase("local") || label.equalsIgnoreCase("rp")) {
-                LocalChatCommand command = new LocalChatCommand(medievalRoleplayEngine);
-                return command.startChattingInLocalChat(sender, args);
-            }
-
-            if (label.equalsIgnoreCase("global") || label.equalsIgnoreCase("ooc")) {
-                GlobalChatCommand command = new GlobalChatCommand(medievalRoleplayEngine);
-                return command.startChattingInGlobalChat(sender, args);
-            }
-
-            if (label.equalsIgnoreCase("emote") || label.equalsIgnoreCase("me")) {
-                EmoteCommand command = new EmoteCommand(medievalRoleplayEngine);
-                return command.emoteAction(sender, args);
-            }
-
-            if (label.equalsIgnoreCase("yell")) {
-                YellCommand command = new YellCommand(medievalRoleplayEngine);
-                command.sendLoudMessage(sender, args);
-                return true;
-            }
-
-            if (label.equalsIgnoreCase("whisper")) {
-                WhisperCommand command = new WhisperCommand(medievalRoleplayEngine);
-                command.sendQuietMessage(sender, args);
-                return true;
-            }
-
-            if (label.equalsIgnoreCase("lo")) {
-                LocalOOCChatCommand command = new LocalOOCChatCommand(medievalRoleplayEngine);
-                command.sendLocalOOCMessage(sender, args);
-                return true;
-            }
+        if (label.equalsIgnoreCase("emote") || label.equalsIgnoreCase("me")) {
+            EmoteCommand command = new EmoteCommand(medievalRoleplayEngine);
+            return command.emoteAction(sender, args);
         }
 
         return false;

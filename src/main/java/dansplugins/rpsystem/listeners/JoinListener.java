@@ -1,6 +1,7 @@
 package dansplugins.rpsystem.listeners;
 
 import dansplugins.rpsystem.MedievalRoleplayEngine;
+import dansplugins.rpsystem.api.CharacterRecord;
 import dansplugins.rpsystem.cards.CharacterCard;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -15,9 +16,23 @@ public class JoinListener implements Listener {
 
     @EventHandler()
     public void handle(PlayerJoinEvent event) {
-        if (!medievalRoleplayEngine.cardRepository.hasCard(event.getPlayer().getUniqueId())) {
-            CharacterCard newCard = new CharacterCard(medievalRoleplayEngine, event.getPlayer().getUniqueId());
-            medievalRoleplayEngine.cardRepository.getCards().add(newCard);
+        CharacterCard card = medievalRoleplayEngine.cardRepository.getCard(
+                event.getPlayer().getUniqueId());
+        if (card == null) {
+            CharacterCard draft = CharacterCard.newDraft(event.getPlayer().getUniqueId(),
+                    event.getPlayer().getName(), System.currentTimeMillis());
+            if (!medievalRoleplayEngine.storageService.saveCard(draft)) {
+                return;
+            }
+            medievalRoleplayEngine.cardRepository.put(draft);
+            medievalRoleplayEngine.storageService.saveCardFileNames();
+            medievalRoleplayEngine.publishCharacterCreated(draft.snapshot());
+            return;
+        }
+
+        CharacterRecord previous = card.snapshot();
+        if (card.setLastKnownPlayerName(event.getPlayer().getName())) {
+            medievalRoleplayEngine.persistCharacterUpdate(card, previous);
         }
     }
 

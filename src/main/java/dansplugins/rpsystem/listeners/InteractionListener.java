@@ -18,14 +18,12 @@ public class InteractionListener implements Listener {
 
     @EventHandler()
     public void handle(PlayerInteractAtEntityEvent event) {
-        if (event.getRightClicked() instanceof Player) {
-
-            Player target = (Player) event.getRightClicked();
+        if (event.getRightClicked() instanceof Player target) {
             CharacterCard card = medievalRoleplayEngine.cardRepository.getCard(target.getUniqueId());
 
             Player player = event.getPlayer();
 
-            if (card == null) {
+            if (card == null || !card.snapshot().isPubliclyVisible()) {
                 return;
             }
 
@@ -43,17 +41,16 @@ public class InteractionListener implements Listener {
             // the cooldown entry is only added once the interaction is actually served, so that a rejected
             // player is never left on the cooldown for the remainder of the session
             if (!medievalRoleplayEngine.ephemeralData.getPlayersWithRightClickCooldown().contains(player.getUniqueId())) {
-                medievalRoleplayEngine.ephemeralData.getPlayersWithRightClickCooldown().add(player.getUniqueId());
+                java.util.UUID viewerId = player.getUniqueId();
+                medievalRoleplayEngine.ephemeralData.getPlayersWithRightClickCooldown().add(viewerId);
 
                 medievalRoleplayEngine.messenger.sendCardInfoToPlayer(card, player);
 
-                medievalRoleplayEngine.getServer().getScheduler().runTaskLater(medievalRoleplayEngine, new Runnable() {
-                    @Override
-                    public void run() {
-                        medievalRoleplayEngine.ephemeralData.getPlayersWithRightClickCooldown().remove(player.getUniqueId());
-
-                    }
-                }, RIGHT_CLICK_COOLDOWN_TICKS);
+                medievalRoleplayEngine.getServer().getScheduler().runTaskLater(
+                        medievalRoleplayEngine,
+                        () -> medievalRoleplayEngine.ephemeralData
+                                .getPlayersWithRightClickCooldown().remove(viewerId),
+                        RIGHT_CLICK_COOLDOWN_TICKS);
 
             }
 

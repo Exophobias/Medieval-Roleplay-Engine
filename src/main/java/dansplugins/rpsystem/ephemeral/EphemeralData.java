@@ -1,43 +1,54 @@
 package dansplugins.rpsystem.ephemeral;
 
-import java.util.ArrayList;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class EphemeralData {
-    private final ArrayList<UUID> playersWithBusyBirds = new ArrayList<>();
-    private final ArrayList<UUID> playersSpeakingInLocalChat = new ArrayList<>();
-    private final ArrayList<UUID> playersOnNameChangeCooldown = new ArrayList<>();
-    private final ArrayList<UUID> playersWithRightClickCooldown = new ArrayList<>();
-    private final ArrayList<UUID> playersWhoHaveHiddenGlobalChat = new ArrayList<>();
-    private final ArrayList<UUID> playersWhoHaveHiddenLocalChat = new ArrayList<>();
-    private final ArrayList<UUID> playersWhoHaveHiddenLocalOOCChat = new ArrayList<>();
+    private final Set<UUID> playersWithBusyBirds = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> playersSpeakingInLocalChat = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> playersOnNameChangeCooldown = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> playersWithRightClickCooldown = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> playersWhoHaveHiddenGlobalChat = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> playersWhoHaveHiddenLocalChat = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> playersWhoHaveHiddenLocalOOCChat = ConcurrentHashMap.newKeySet();
 
-    public ArrayList<UUID> getPlayersWithBusyBirds() {
+    public Set<UUID> getPlayersWithBusyBirds() {
         return playersWithBusyBirds;
     }
 
-    public ArrayList<UUID> getPlayersSpeakingInLocalChat() {
+    public Set<UUID> getPlayersSpeakingInLocalChat() {
         return playersSpeakingInLocalChat;
     }
 
-    public ArrayList<UUID> getPlayersOnNameChangeCooldown() {
+    public Set<UUID> getPlayersOnNameChangeCooldown() {
         return playersOnNameChangeCooldown;
     }
 
-    public ArrayList<UUID> getPlayersWithRightClickCooldown() {
+    public Set<UUID> getPlayersWithRightClickCooldown() {
         return playersWithRightClickCooldown;
     }
 
-    public ArrayList<UUID> getPlayersWhoHaveHiddenGlobalChat() {
+    public Set<UUID> getPlayersWhoHaveHiddenGlobalChat() {
         return playersWhoHaveHiddenGlobalChat;
     }
 
-    public ArrayList<UUID> getPlayersWhoHaveHiddenLocalChat() {
+    public Set<UUID> getPlayersWhoHaveHiddenLocalChat() {
         return playersWhoHaveHiddenLocalChat;
     }
 
-    public ArrayList<UUID> getPlayersWhoHaveHiddenLocalOOCChat() {
+    public Set<UUID> getPlayersWhoHaveHiddenLocalOOCChat() {
         return playersWhoHaveHiddenLocalOOCChat;
+    }
+
+    /** Clears state that is meaningful only during one login session. */
+    public void clearSession(UUID playerId) {
+        playersWithBusyBirds.remove(playerId);
+        playersSpeakingInLocalChat.remove(playerId);
+        playersWithRightClickCooldown.remove(playerId);
+        playersWhoHaveHiddenGlobalChat.remove(playerId);
+        playersWhoHaveHiddenLocalChat.remove(playerId);
+        playersWhoHaveHiddenLocalOOCChat.remove(playerId);
     }
 
 }

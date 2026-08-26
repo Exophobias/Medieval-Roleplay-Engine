@@ -1,5 +1,10 @@
 # Test Container
-The test container builds a minecraft server and the plugin to test it. It is used to test the plugin in a real environment.
+
+The test container runs the Maven verification suite, downloads the pinned Paper 26.2 build 92
+server from PaperMC's official downloads service, and installs the resulting plugin jar. It is a
+manual smoke-test environment; unit and protocol gates still run during the image build.
 
 ## Modifying ops.json
-The ops.json file is used to give players operator permissions. This file is located in the server directory. To make a player an operator, add their username & UUID to the file.
+
+The `ops.json` file gives test players operator permissions. Add the test account's username and
+UUID before building the image.

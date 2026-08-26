@@ -1,10 +1,12 @@
 package dansplugins.rpsystem.placeholders;
 
 import dansplugins.rpsystem.MedievalRoleplayEngine;
-import dansplugins.rpsystem.cards.CharacterCard;
+import dansplugins.rpsystem.api.CharacterRecord;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Locale;
 
 public class PlaceholderAPI extends PlaceholderExpansion {
     private final MedievalRoleplayEngine medievalRoleplayEngine;
@@ -16,7 +18,7 @@ public class PlaceholderAPI extends PlaceholderExpansion {
     @Override
     public @NotNull
     String getIdentifier() {
-        return medievalRoleplayEngine.getName();
+        return "medievalroleplayengine";
     }
 
     @Override
@@ -42,32 +44,61 @@ public class PlaceholderAPI extends PlaceholderExpansion {
     @Override
     public String onPlaceholderRequest(Player player, @NotNull String params) {
 
-        params = params.toLowerCase();
+        params = params.toLowerCase(Locale.ROOT);
 
         if (player == null) return null;
 
-        CharacterCard card = medievalRoleplayEngine.cardRepository.getCard(player.getUniqueId());
-        if (card == null) return null;
+        CharacterRecord card = medievalRoleplayEngine.characterService
+                .currentCharacter(player.getUniqueId()).orElse(null);
+
+        boolean known = params.equals("card_name")
+                || params.equals("card_age")
+                || params.equals("card_race")
+                || params.equals("card_subculture")
+                || params.equals("card_gender")
+                || params.equals("card_religion")
+                || params.equals("character_id")
+                || params.equals("character_status")
+                || params.equals("past_count");
+        if (!known) {
+            return null;
+        }
+        if (params.equals("past_count")) {
+            long count = medievalRoleplayEngine.characterService.characters(player.getUniqueId())
+                    .stream()
+                    .filter(record -> !record.isCurrent() && record.isPubliclyVisible())
+                    .count();
+            return Long.toString(count);
+        }
+        if (card == null || !card.isPubliclyVisible()) {
+            return "";
+        }
 
         if (params.equalsIgnoreCase("card_name")) {
-            return card.getName();
+            return card.name();
         }
         if (params.equalsIgnoreCase("card_age")) {
-            return Integer.toString(card.getAge());
+            return Integer.toString(card.age());
         }
         if (params.equalsIgnoreCase("card_race")) {
-            return card.getRace();
+            return card.race();
         }
         if (params.equalsIgnoreCase("card_subculture")) {
-            return card.getSubculture();
+            return card.subculture();
         }
         if (params.equalsIgnoreCase("card_gender")) {
-            return card.getGender();
+            return card.gender();
         }
         if (params.equalsIgnoreCase("card_religion")) {
-            return card.getReligion();
+            return medievalRoleplayEngine.getConfig()
+                    .getBoolean("exposeReligionPlaceholder", false) ? card.religion() : "";
         }
-
+        if (params.equals("character_id")) {
+            return card.characterId().toString();
+        }
+        if (params.equals("character_status")) {
+            return card.status().name();
+        }
         return null;
     }
 }

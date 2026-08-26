@@ -2,7 +2,6 @@ package dansplugins.rpsystem.utils;
 
 import dansplugins.rpsystem.MedievalRoleplayEngine;
 import dansplugins.rpsystem.cards.CharacterCard;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -41,13 +40,20 @@ public class Messenger {
     }
 
     public void sendCardInfoToPlayer(CharacterCard card, Player player) {
-        player.sendMessage(ChatColor.BOLD + "" + medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "\n----------\n" + "Character Card of " + Bukkit.getOfflinePlayer(card.getPlayerUUID()).getName() + "\n----------\n");
+        String accountName = card.getLastKnownPlayerName().isBlank()
+                ? card.getPlayerUUID().toString()
+                : card.getLastKnownPlayerName();
+        player.sendMessage(ChatColor.BOLD + "" + medievalRoleplayEngine.colorChecker.getNeutralAlertColor()
+                + "\n----------\nCharacter Card of " + accountName + "\n----------\n");
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Name: " + card.getName());
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Race: " + card.getRace());
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Subculture: " + card.getSubculture());
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Age: " + card.getAge());
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Gender: " + card.getGender());
-        player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Religion: " + card.getReligion());
+        if (medievalRoleplayEngine.getConfig().getBoolean("legacyReligionFieldEnabled", false)) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor()
+                    + "Biography religion (not authoritative): " + card.getReligion());
+        }
     }
 
     private int deliverMessageToNearbyPlayers(Player sender, String message, int distance,
@@ -57,6 +63,7 @@ public class Messenger {
             return 0;
         }
         int recipientCount = 0;
+        double maximumDistanceSquared = (double) Math.max(0, distance) * Math.max(0, distance);
         for (Player nearby : getServer().getOnlinePlayers()) {
             Location nearbyLocation = nearby.getLocation();
             if (nearbyLocation.getWorld() == null) {
@@ -65,7 +72,7 @@ public class Messenger {
             if (!nearbyLocation.getWorld().getName().equals(senderLocation.getWorld().getName())) {
                 continue;
             }
-            if (nearbyLocation.distance(senderLocation) >= distance) {
+            if (nearbyLocation.distanceSquared(senderLocation) >= maximumDistanceSquared) {
                 continue;
             }
             if (excludeSender && nearby.getUniqueId().equals(sender.getUniqueId())) {
