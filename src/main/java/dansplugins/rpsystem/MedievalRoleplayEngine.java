@@ -12,6 +12,7 @@ import dansplugins.rpsystem.cards.CardRepository;
 import dansplugins.rpsystem.cards.CharacterCard;
 import dansplugins.rpsystem.cards.CharacterServiceImpl;
 import dansplugins.rpsystem.commands.CommandService;
+import dansplugins.rpsystem.config.ConfigMigrator;
 import dansplugins.rpsystem.config.ConfigService;
 import dansplugins.rpsystem.ephemeral.EphemeralData;
 import dansplugins.rpsystem.listeners.InteractionListener;
@@ -57,18 +58,23 @@ public class MedievalRoleplayEngine extends JavaPlugin {
     private TrueDeathIntegration trueDeathIntegration;
     private PlanIntegration planIntegration;
     private PlaceholderAPI placeholderExpansion;
+    private boolean dataLoaded;
 
     @Override
     public void onEnable() {
+        dataLoaded = false;
         saveDefaultConfig();
-        reloadConfig();
-        configService.handleVersionMismatch();
+        if (!configService.prepareConfiguration()) {
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         storageService.loadCards();
         if (storageService.oldSaveFolderPresent()) {
             storageService.legacyLoadCards();
         }
         characterHistoryRepository.load();
+        dataLoaded = true;
 
         getServer().getServicesManager().register(
                 CharacterService.class, characterService, this, ServicePriority.Normal);
@@ -110,6 +116,9 @@ public class MedievalRoleplayEngine extends JavaPlugin {
             placeholderExpansion = null;
         }
         getServer().getServicesManager().unregisterAll(this);
+        if (!dataLoaded) {
+            return;
+        }
         storageService.saveCardFileNames();
         storageService.saveCards();
         if (configService.hasBeenAltered()) {
@@ -133,6 +142,10 @@ public class MedievalRoleplayEngine extends JavaPlugin {
     public boolean isVersionMismatched() {
         String configuredVersion = getConfig().getString("version");
         return configuredVersion == null || !configuredVersion.equalsIgnoreCase(getVersion());
+    }
+
+    public boolean isConfigVersionMismatched() {
+        return !ConfigMigrator.hasCurrentVersion(getConfig());
     }
 
     /** Saves an edit before publishing it to optional analytics or web consumers. */

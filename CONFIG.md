@@ -4,7 +4,29 @@ All options are set in the `plugins/MedievalRoleplayEngine/config.yml` file. Opt
 
 Options can also be inspected and changed in-game by an operator with `/rpconfig show` and `/rpconfig set <option> <value>`; changes made that way are written straight back to `config.yml`.
 
-The defaults below are those written when the plugin creates `config.yml` for the first time. The same values are backfilled for any option that is missing when an existing `config.yml` is carried across a plugin upgrade, so a fresh install and an upgraded server end up with the same defaults.
+The defaults below are those written when the plugin creates `config.yml` for the first time. An
+ordered schema migration backfills missing options when an older `config.yml` is carried across a
+plugin upgrade, while preserving explicit administrator values and unknown extension keys.
+
+The integer `config-version` is the configuration schema and is independent of the plugin release.
+An unversioned file is schema 0. Before changing an older file, the plugin writes a byte-identical
+sibling `config.yml.v<old-version>.bak`, then replaces the installed file atomically. A newer schema,
+an invalid marker, an invalid known value, or invalid YAML is left untouched and the plugin disables
+itself rather than guessing. An existing backup is never overwritten; later attempts add `.1`,
+`.2`, and so on.
+
+The schema-0 migration also renames the historical `neurtalAlertColor` typo and removes the retired
+development-only `test` key. Other unknown keys are retained.
+
+---
+
+## config-version
+
+**Type:** integer
+
+**Default:** `1`
+
+**Description:** Configuration schema used for ordered migrations. Do not change this manually.
 
 ---
 
@@ -12,7 +34,7 @@ The defaults below are those written when the plugin creates `config.yml` for th
 
 **Type:** string  
 **Default:** *(set automatically by the plugin)*  
-**Description:** Tracks the plugin version that last wrote this config file. Do not change this manually.
+**Description:** Tracks the plugin release that last migrated this config file. It is not the schema version. Do not change this manually.
 
 ---
 
@@ -229,8 +251,10 @@ negativeAlertColor: dark_red
 ## chatFeaturesEnabled
 
 **Type:** boolean  
-**Default:** `true`  
-**Description:** When `false`, all chat-related commands (`/local`, `/rp`, `/global`, `/ooc`, `/whisper`, `/yell`, `/emote`, `/me`, `/lo`) stop responding, and normal chat is no longer rerouted into local roleplay chat. Card, bird, dice, title, help and config commands are unaffected.
+**Default:** `false`
+**Description:** Retained for compatibility with older MRE configurations. PatriamChat owns local,
+global, OOC, whisper and yell chat, so the Patriam package never registers those legacy commands.
+Setting this to `true` only produces a warning. `/emote` and `/me` remain available either way.
 
 **Example:**
 

@@ -1,4 +1,7 @@
-# This value is filtered by Maven and is used to migrate missing configuration keys safely.
+# Configuration schema, independent of the plugin release below. Do not edit this manually.
+config-version: 1
+
+# This value is filtered by Maven and records which plugin release last migrated this file.
 version: 'v${project.version}'
 
 # Character-card behaviour.

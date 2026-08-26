@@ -1,5 +1,6 @@
 package dansplugins.rpsystem;
 
+import dansplugins.rpsystem.config.ConfigMigrator;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +39,7 @@ class PluginDescriptorTest {
     void shippedConfigurationFailsClosedForOverlappingOrPrivateFeatures() throws IOException {
         YamlConfiguration config = resource("config.yml");
 
+        assertEquals(ConfigMigrator.CURRENT_VERSION, config.getInt(ConfigMigrator.VERSION_KEY));
         assertFalse(config.getBoolean("chatFeaturesEnabled", true));
         assertFalse(config.getBoolean("legacyReligionFieldEnabled", true));
         assertFalse(config.getBoolean("exposeReligionPlaceholder", true));

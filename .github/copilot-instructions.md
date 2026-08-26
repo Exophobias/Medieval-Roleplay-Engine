@@ -28,6 +28,10 @@ making any changes.
 - Annotate every command executor and event listener with `@Override` where applicable.
 - Never hard-code user-facing strings directly in Java; route them through the plugin's messaging helpers.
 - Use `ConfigService` to read configuration values rather than accessing `getConfig()` directly.
+- Treat the top-level integer `config-version` as the configuration schema, independently of the
+  plugin version. Any behavior-affecting config change increments it, adds a sequential migration,
+  preserves explicit/unknown values, rejects future schemas without a write, and includes migration
+  tests. See `CONFIG.md` and `ConfigMigrator`.
 
 ## Contribution Workflow
 

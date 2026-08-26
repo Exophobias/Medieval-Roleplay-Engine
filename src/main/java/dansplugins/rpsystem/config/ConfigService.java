@@ -5,6 +5,10 @@ import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+
 public class ConfigService {
     private final MedievalRoleplayEngine medievalRoleplayEngine;
     private boolean altered = false;
@@ -13,108 +17,80 @@ public class ConfigService {
         this.medievalRoleplayEngine = medievalRoleplayEngine;
     }
 
-    public void handleVersionMismatch() {
-        if (!getConfig().isString("version")) {
-            getConfig().addDefault("version", medievalRoleplayEngine.getVersion());
-        }
-        else {
-            getConfig().set("version", medievalRoleplayEngine.getVersion());
-        }
-
-        if (!getConfig().isInt("localChatRadius")) {
-            getConfig().addDefault("localChatRadius", 25);
-        }
-        if (!getConfig().isInt("whisperChatRadius")) {
-            getConfig().addDefault("whisperChatRadius", 2);
-        }
-        if (!getConfig().isInt("yellChatRadius")) {
-            getConfig().addDefault("yellChatRadius", 50);
-        }
-        if (!getConfig().isInt("emoteRadius")) {
-            getConfig().addDefault("emoteRadius", 25);
-        }
-        if (!getConfig().isInt("changeNameCooldown")) {
-            getConfig().addDefault("changeNameCooldown", 300);
-        }
-        if (!getConfig().isString("localChatColor")) {
-            getConfig().addDefault("localChatColor", "gray");
-        }
-        if (!getConfig().isString("whisperChatColor")) {
-            getConfig().addDefault("whisperChatColor", "blue");
-        }
-        if (!getConfig().isString("yellChatColor")) {
-            getConfig().addDefault("yellChatColor", "red");
-        }
-        if (!getConfig().isString("emoteColor")) {
-            getConfig().addDefault("emoteColor", "gray");
-        }
-        if (!getConfig().isBoolean("rightClickToViewCard")) {
-            getConfig().addDefault("rightClickToViewCard", true);
-        }
-        if (!getConfig().isInt("localOOCChatRadius")) {
-            getConfig().addDefault("localOOCChatRadius", 25);
-        }
-        if (!getConfig().isString("localOOCChatColor")) {
-            getConfig().addDefault("localOOCChatColor", "gray");
-        }
-        if (!getConfig().isString("positiveAlertColor")) {
-            getConfig().addDefault("positiveAlertColor", "green");
-        }
-        if (!getConfig().isString("neutralAlertColor") && getConfig().isString("neurtalAlertColor")) {
-            getConfig().set("neutralAlertColor", getConfig().getString("neurtalAlertColor"));
-            getConfig().set("neurtalAlertColor", null);
-        }
-        if (!getConfig().isString("neutralAlertColor")) {
-            getConfig().addDefault("neutralAlertColor", "aqua");
-        }
-        if (!getConfig().isString("negativeAlertColor")) {
-            getConfig().addDefault("negativeAlertColor", "red");
-        }
-        if (!getConfig().isBoolean("chatFeaturesEnabled")) {
-            getConfig().addDefault("chatFeaturesEnabled", false);
-        }
-        if (!getConfig().isBoolean("debugMode")) {
-            getConfig().addDefault("debugMode", false);
-        }
-        if (!getConfig().isInt("birdSpeed")) {
-            getConfig().addDefault("birdSpeed", 20);
-        }
-        if (!getConfig().isBoolean("logChat")) {
-            getConfig().addDefault("logChat", true);
-        }
-        if (!getConfig().isBoolean("trueDeathIntegrationEnabled")) {
-            getConfig().addDefault("trueDeathIntegrationEnabled", true);
-        }
-        if (!getConfig().isBoolean("planIntegrationEnabled")) {
-            getConfig().addDefault("planIntegrationEnabled", true);
-        }
-        if (!getConfig().isBoolean("legacyReligionFieldEnabled")) {
-            getConfig().addDefault("legacyReligionFieldEnabled", false);
-        }
-        if (!getConfig().isBoolean("exposeReligionPlaceholder")) {
-            getConfig().addDefault("exposeReligionPlaceholder", false);
-        }
-        
-        deleteOldConfigOptionsIfPresent();
-
-        getConfig().options().copyDefaults(true);
-        medievalRoleplayEngine.saveConfig();
-    }
-
-    private void deleteOldConfigOptionsIfPresent() {
-
-        if (getConfig().isInt("test")) {
-            getConfig().set("test", null);
+    /**
+     * Upgrades the physical file before Bukkit attaches bundled defaults to it.
+     *
+     * @return true when the schema is supported and plugin startup may continue
+     */
+    public boolean prepareConfiguration() {
+        String bundled;
+        try (InputStream stream = medievalRoleplayEngine.getResource("config.yml")) {
+            if (stream == null) {
+                medievalRoleplayEngine.getLogger().severe(
+                        "The plugin jar has no config.yml; MedievalRoleplayEngine will be disabled.");
+                return false;
+            }
+            bundled = ConfigMigrator.decodeUtf8(stream.readAllBytes());
+        } catch (IOException e) {
+            medievalRoleplayEngine.getLogger().severe(
+                    "The bundled config.yml could not be read; MedievalRoleplayEngine will be "
+                            + "disabled.");
+            return false;
         }
 
+        ConfigMigrator.Result result = ConfigMigrator.upgrade(
+                medievalRoleplayEngine.getDataFolder().toPath().resolve("config.yml"),
+                bundled, medievalRoleplayEngine.getVersion());
+        String schemaIdentity = medievalRoleplayEngine.getVersion()
+                + " supports config schema v" + ConfigMigrator.CURRENT_VERSION;
+
+        switch (result.state()) {
+            case CURRENT -> medievalRoleplayEngine.getLogger().info(
+                    schemaIdentity + "; installed schema v" + result.sourceVersion()
+                            + " is current.");
+            case UPGRADED -> medievalRoleplayEngine.getLogger().warning(
+                    schemaIdentity + "; installed schema v" + result.sourceVersion()
+                            + " was migrated to v" + ConfigMigrator.CURRENT_VERSION
+                            + ". Original saved as " + result.backup().getFileName() + '.');
+            case FUTURE -> medievalRoleplayEngine.getLogger().severe(
+                    schemaIdentity + "; installed schema v" + result.sourceVersion()
+                            + " is blocked because it is newer. This jar will not rewrite a config "
+                            + "created by a newer plugin; install the matching/newer jar or restore "
+                            + "an older config backup.");
+            case INVALID, ERROR -> medievalRoleplayEngine.getLogger().severe(
+                    schemaIdentity + "; installed schema is blocked: " + result.detail()
+                            + ". MedievalRoleplayEngine will be disabled without changing the "
+                            + "installed configuration.");
+        }
+
+        if (!result.compatible()) {
+            return false;
+        }
+        medievalRoleplayEngine.reloadConfig();
+        List<String> reloadedErrors = ConfigMigrator.validateCurrentConfiguration(
+                medievalRoleplayEngine.getConfig());
+        if (!reloadedErrors.isEmpty()) {
+            medievalRoleplayEngine.getLogger().severe(
+                    schemaIdentity + "; the configuration snapshot loaded by Bukkit is blocked: "
+                            + String.join("; ", reloadedErrors) + ". config.yml may have changed "
+                            + "during startup. MedievalRoleplayEngine will be disabled without "
+                            + "saving it.");
+            return false;
+        }
+        // Migration decisions used only the physical file. Defaults are attached only afterward;
+        // copying them into the in-memory view keeps /rpconfig set usable when an operator has
+        // deliberately omitted a key and accepts its shipped default.
+        medievalRoleplayEngine.getConfig().options().copyDefaults(true);
+        return true;
     }
 
     public void setConfigOption(String option, String value, Player player) {
 
         if (getConfig().isSet(option)) {
 
-            if (option.equalsIgnoreCase("version")) {
-                player.sendMessage(ChatColor.RED + "Cannot set version!");
+            if (option.equalsIgnoreCase("version")
+                    || option.equalsIgnoreCase(ConfigMigrator.VERSION_KEY)) {
+                player.sendMessage(ChatColor.RED + "Cannot set configuration metadata!");
                 return;
             }
             else if (option.equalsIgnoreCase("localChatRadius")
@@ -171,37 +147,31 @@ public class ConfigService {
 
     }
 
+    /**
+     * Retained for source compatibility with older callers. New code must use the startup
+     * migrator; this helper never attempts to upgrade or downgrade a schema.
+     */
+    @Deprecated
     public void saveConfigDefaults() {
-        getConfig().addDefault("version", medievalRoleplayEngine.getVersion());
-        getConfig().addDefault("localChatRadius", 25);
-        getConfig().addDefault("whisperChatRadius", 2);
-        getConfig().addDefault("yellChatRadius", 50);
-        getConfig().addDefault("emoteRadius", 25);
-        getConfig().addDefault("changeNameCooldown", 300);
-        getConfig().addDefault("localChatColor", "gray");
-        getConfig().addDefault("whisperChatColor", "blue");
-        getConfig().addDefault("yellChatColor", "red");
-        getConfig().addDefault("emoteColor", "gray");
-        getConfig().addDefault("rightClickToViewCard", true);
-        getConfig().addDefault("localOOCChatRadius", 25);
-        getConfig().addDefault("localOOCChatColor", "gray");
-        getConfig().addDefault("positiveAlertColor", "green");
-        getConfig().addDefault("neutralAlertColor", "aqua");
-        getConfig().addDefault("negativeAlertColor", "red");
-        getConfig().addDefault("chatFeaturesEnabled", false);
-        getConfig().addDefault("debugMode", false);
-        getConfig().addDefault("birdSpeed", 20);
-        getConfig().addDefault("logChat", true);
-        getConfig().addDefault("trueDeathIntegrationEnabled", true);
-        getConfig().addDefault("planIntegrationEnabled", true);
-        getConfig().addDefault("legacyReligionFieldEnabled", false);
-        getConfig().addDefault("exposeReligionPlaceholder", false);
+        if (!getConfig().contains(ConfigMigrator.VERSION_KEY, true)
+                || !getConfig().isInt(ConfigMigrator.VERSION_KEY)
+                || getConfig().getInt(ConfigMigrator.VERSION_KEY)
+                != ConfigMigrator.CURRENT_VERSION) {
+            medievalRoleplayEngine.getLogger().warning(
+                    "Refused to copy defaults into a configuration whose schema is not current.");
+            return;
+        }
         getConfig().options().copyDefaults(true);
         medievalRoleplayEngine.saveConfig();
     }
 
     public void sendPlayerConfigList(Player player) {
-        player.sendMessage(medievalRoleplayEngine.colorChecker.getColorByName(getString("neutralAlertColor")) + "version: " + getConfig().getString("version")
+        player.sendMessage(medievalRoleplayEngine.colorChecker.getColorByName(getString("neutralAlertColor"))
+                + "plugin-version: " + medievalRoleplayEngine.getVersion()
+                + ", supported-config-version: " + ConfigMigrator.CURRENT_VERSION
+                + ", config-version: " + getConfig().getInt(ConfigMigrator.VERSION_KEY)
+                + ", config-state: current"
+                + ", config-written-by: " + getConfig().getString("version")
                 + ", debugMode: " + getConfig().getBoolean("debugMode")
                 + ", chatFeaturesEnabled: " + getConfig().getBoolean("chatFeaturesEnabled")
                 + ", trueDeathIntegrationEnabled: " + getConfig().getBoolean("trueDeathIntegrationEnabled")

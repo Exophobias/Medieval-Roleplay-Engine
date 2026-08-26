@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added (Patriam fork)
 
+- An independent integer `config-version` with ordered migration from legacy schema 0, a
+  byte-identical pre-migration backup, atomic replacement, strict value checks, and fail-closed
+  handling for malformed or future schemas.
 - Stable character IDs, immutable lifecycle snapshots, a Bukkit `CharacterService`, and durable
   character-created, updated, and ended events.
 - Append-only deceased-character history and idempotent integration with PatriamUtils' approved
