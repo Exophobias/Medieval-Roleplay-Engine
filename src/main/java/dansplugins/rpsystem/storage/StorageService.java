@@ -25,10 +25,12 @@ public final class StorageService {
     private final MedievalRoleplayEngine plugin;
     private final Path dataDirectory;
     private final Path legacyDirectory;
+    private final CurrentCardFiles currentFiles;
 
     public StorageService(MedievalRoleplayEngine plugin) {
         this.plugin = plugin;
         this.dataDirectory = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        this.currentFiles = new CurrentCardFiles(dataDirectory);
         Path pluginsDirectory = dataDirectory.getParent();
         this.legacyDirectory = pluginsDirectory == null
                 ? dataDirectory.resolveSibling("medieval-roleplay-engine")
@@ -56,10 +58,7 @@ public final class StorageService {
             return false;
         }
         try {
-            String content = String.join(System.lineSeparator(), card.serializedLines())
-                    + System.lineSeparator();
-            AtomicFiles.writeUtf8(cardPath(card.getPlayerUUID()), content);
-            card.markPersisted();
+            currentFiles.write(card);
             return true;
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE,
@@ -78,6 +77,7 @@ public final class StorageService {
      */
     public void loadCards() {
         plugin.cardRepository.clear();
+        currentFiles.beginLoad();
         try {
             Files.createDirectories(dataDirectory);
         } catch (IOException e) {
@@ -184,12 +184,12 @@ public final class StorageService {
         }
 
         for (CharacterCard card : imported) {
-            plugin.cardRepository.put(card);
             if (!saveCard(card)) {
                 plugin.getLogger().severe(
                         "Legacy character migration was not finalized; original files remain intact.");
                 return false;
             }
+            plugin.cardRepository.put(card);
         }
         saveCardFileNames();
 
@@ -234,6 +234,7 @@ public final class StorageService {
                 hydratedName = knownName != null && card.setLastKnownPlayerName(knownName);
             }
             plugin.cardRepository.put(card);
+            currentFiles.loaded(filenameOwner);
             if (card.needsMigration() || hydratedName) {
                 saveCard(card);
             }
