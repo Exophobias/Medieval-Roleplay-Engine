@@ -110,4 +110,13 @@
       <url>https://repo.playeranalytics.net/releases</url>
     </repository>
   </repositories>
+  <profiles>
+    <!-- Paper 26.3 compatibility target; default tests retain their existing API. -->
+    <profile>
+      <id>paper-26.3</id>
+      <properties>
+        <paper.version>26.3.build.26-alpha</paper.version>
+      </properties>
+    </profile>
+  </profiles>
 </project>
