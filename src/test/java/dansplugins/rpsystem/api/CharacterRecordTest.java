@@ -111,6 +111,17 @@ class CharacterRecordTest {
                 "\uD800", CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
     }
 
+    @Test
+    void standaloneRecordKeepsCoreUnicodeWellFormedAtTheLimit() {
+        CharacterRecord record = new CharacterRecord(
+                CHARACTER_ID, PLAYER_ID, "Account", CharacterStatus.ACTIVE,
+                1L, 0L, 0L, null, "", "Name", "Olzharian",
+                "n".repeat(127) + "\uD83C\uDF0A", "Culture", 30, "", "None");
+        assertEquals("n".repeat(127), record.nationality());
+        assertEquals("n".repeat(127) + "\uFFFD",
+                CharacterRecord.cleanCoreText("n".repeat(127) + "\uD800"));
+    }
+
     private static CharacterRecord withPublicFields(CharacterRecord source, String race,
                                                      String subculture, int age, String gender) {
         return new CharacterRecord(

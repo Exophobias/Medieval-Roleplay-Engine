@@ -193,6 +193,19 @@ class CharacterCardTest {
                 () -> card.deceasedSnapshot(0L, 0L, UUID.randomUUID(), "reason"));
     }
 
+    @Test
+    void nationalityTruncationKeepsUnicodePairsIntact() {
+        CharacterCard card = CharacterCard.newDraft(PLAYER_ID, "Account", 42L);
+        card.setNationality("n".repeat(127) + "\uD83C\uDF0A");
+        assertEquals("n".repeat(127), card.getNationality());
+        assertEquals(card.getNationality(), card.snapshot().nationality());
+
+        card.setNationality("\uD83C\uDF0A".repeat(64));
+        assertEquals("\uD83C\uDF0A".repeat(64), card.snapshot().nationality());
+        card.setNationality("North\uD800march");
+        assertEquals("North\uFFFDmarch", card.snapshot().nationality());
+    }
+
     static List<String> tenLines(UUID playerId, UUID characterId, long createdAt,
                                  String accountName, String characterName) {
         return List.of(

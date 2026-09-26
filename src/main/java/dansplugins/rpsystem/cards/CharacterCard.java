@@ -21,8 +21,6 @@ public final class CharacterCard {
     public static final String DEFAULT_SUBCULTURE = "defaultSubculture";
     public static final String DEFAULT_GENDER = "defaultGender";
     public static final String DEFAULT_RELIGION = "defaultReligion";
-    private static final int MAX_FIELD_LENGTH = 128;
-
     private final UUID playerUUID;
     private final UUID characterId;
     private final long createdAt;
@@ -381,12 +379,6 @@ public final class CharacterCard {
     }
 
     private static String clean(String value) {
-        if (value == null) {
-            return "";
-        }
-        String singleLine = value.replace('\r', ' ').replace('\n', ' ').replace('\0', ' ').trim();
-        return singleLine.length() <= MAX_FIELD_LENGTH
-                ? singleLine
-                : singleLine.substring(0, MAX_FIELD_LENGTH);
+        return CharacterRecord.cleanCoreText(value);
     }
 }

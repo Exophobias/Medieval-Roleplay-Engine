@@ -213,11 +213,31 @@ public record CharacterRecord(
     }
 
     private static String clean(String value) {
+        return cleanCoreText(value);
+    }
+
+    /** Bounds a core card field in UTF-16 units without creating an unpaired surrogate. */
+    public static String cleanCoreText(String value) {
         if (value == null) {
             return "";
         }
         String singleLine = value.replace('\r', ' ').replace('\n', ' ').replace('\0', ' ').trim();
-        return singleLine.length() <= 128 ? singleLine : singleLine.substring(0, 128);
+        StringBuilder bounded = new StringBuilder(Math.min(singleLine.length(), 128));
+        for (int index = 0; index < singleLine.length() && bounded.length() < 128; index++) {
+            char unit = singleLine.charAt(index);
+            if (Character.isHighSurrogate(unit) && index + 1 < singleLine.length()
+                    && Character.isLowSurrogate(singleLine.charAt(index + 1))) {
+                if (bounded.length() + 2 > 128) {
+                    break;
+                }
+                bounded.append(unit).append(singleLine.charAt(++index));
+            } else if (Character.isSurrogate(unit)) {
+                bounded.append('\uFFFD');
+            } else {
+                bounded.append(unit);
+            }
+        }
+        return bounded.toString();
     }
 
     /** Preserve prose line breaks while rejecting controls and lossy overlong values. */
