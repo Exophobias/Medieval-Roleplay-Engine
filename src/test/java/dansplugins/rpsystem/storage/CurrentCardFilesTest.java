@@ -36,7 +36,7 @@ class CurrentCardFilesTest {
         files.beginLoad();
         CharacterCard loaded = CharacterCard.fromLines(Files.readAllLines(file), 1);
         assertEquals(card.snapshot(), loaded.snapshot());
-        assertEquals(17, Files.readAllLines(file).size());
+        assertEquals(18, Files.readAllLines(file).size());
         files.loaded(loaded.getPlayerUUID());
         loaded.setName("Updated Character");
         files.write(loaded);

@@ -22,11 +22,16 @@ class CharacterEditFingerprintTest {
 
         card.setReligion("Old Shrine");
         card.setLastKnownPlayerName("RenamedAccount");
+        card.setRace("Legacy race is no longer editable");
         assertEquals(fingerprint, card.snapshot().editFingerprint());
+
+        card.setNationality("Western March");
+        String withNationality = card.snapshot().editFingerprint();
+        assertNotEquals(fingerprint, withNationality);
 
         card.setOriginDescription("Born at sea.\nRaised ashore.");
         String withOrigin = card.snapshot().editFingerprint();
-        assertNotEquals(fingerprint, withOrigin);
+        assertNotEquals(withNationality, withOrigin);
         card.setShowStoryPublicly(true);
         assertNotEquals(withOrigin, card.snapshot().editFingerprint());
 

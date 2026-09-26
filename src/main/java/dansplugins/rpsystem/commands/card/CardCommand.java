@@ -47,10 +47,10 @@ public class CardCommand {
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card - View your character card.");
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card lookup (player) - View the character card of a specific player.");
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card name (name) - Change your character's name.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card race (race) - Change your character's race.");
+            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card nationality (nationality|clear) - Set or clear your character's nationality.");
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card subculture (subculture) - Change your character's subculture.");
             sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card age (age) - Change your character's age.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card gender (gender) - Change your character's gender.");
+            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card gender (sex/gender|clear) - Set or clear your character's sex/gender.");
             if (medievalRoleplayEngine.getConfig().getBoolean("legacyReligionFieldEnabled", false)) {
                 sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card religion (religion) - Change the legacy biography religion field.");
             }
@@ -98,9 +98,9 @@ public class CardCommand {
         medievalRoleplayEngine.beginNameChangeCooldown(player.getUniqueId());
     }
 
-    public void changeRace(CommandSender sender, String[] args) {
-        applyStringCardChange(sender, args, "rp.card.race", "race",
-                (card, value) -> card.setRace(value));
+    public void changeNationality(CommandSender sender, String[] args) {
+        applyStringCardChange(sender, args, "rp.card.nationality", "nationality",
+                CharacterCard::setNationality);
     }
 
     public void changeSubculture(CommandSender sender, String[] args) {
@@ -120,7 +120,7 @@ public class CardCommand {
 
     public void changeGender(CommandSender sender, String[] args) {
         applyStringCardChange(sender, args, "rp.card.gender", "gender",
-                (card, value) -> card.setGender(value));
+                CharacterCard::setGender);
     }
 
     public void changeAge(CommandSender sender, String[] args) {
@@ -257,14 +257,18 @@ public class CardCommand {
         }
 
         CharacterRecord previous = card.snapshot();
-        setter.apply(card, medievalRoleplayEngine.argumentParser.createStringFromFirstArgOnwards(args, 1));
+        boolean clearOptional = ("nationality".equals(fieldName) || "gender".equals(fieldName))
+                && args.length == 2 && args[1].equalsIgnoreCase("clear");
+        setter.apply(card, clearOptional ? ""
+                : medievalRoleplayEngine.argumentParser.createStringFromFirstArgOnwards(args, 1));
         if (!medievalRoleplayEngine.persistCharacterUpdate(card, previous)) {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor()
                     + "Your character could not be saved, so the change was not applied.");
             return;
         }
         player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor()
-                + capitalize(fieldName) + " set! Type /card to see changes.");
+                + ("gender".equals(fieldName) ? "Sex/Gender" : capitalize(fieldName))
+                + (clearOptional ? " cleared!" : " set!") + " Type /card to see changes.");
     }
 
     private CharacterCard findCardForPlayer(UUID playerUUID) {

@@ -64,12 +64,12 @@ migration, privacy, Plan and NamelessMC integration boundaries.
   legacy religion remains hidden unless explicitly enabled.
 - **PatriamUtils:** remains the sole owner of `/truedeath`; its public service/event is an optional
   lifecycle input.
-- **Plan:** registers a read-only DataExtension with current name/race/subculture/age/gender,
+- **Plan:** registers a read-only DataExtension with current name/nationality/subculture/age/sex or gender,
   deceased history, and a staff server overview. It follows Plan reloads and refreshes after durable
   card changes. Plan is not a public character directory and does not edit characters.
 - **NamelessMC:** the separate Characters module displays current and past characters on verified,
   public profiles and offers a private current-card editor to a uniquely verified owner. The forum
-  queues name/race/subculture/age/gender edits; PatriamNamelessBridge delivers them to MRE's
+  queues name/nationality/subculture/age/sex or gender edits; PatriamNamelessBridge delivers them to MRE's
   guarded API and publishes a separate private draft/current snapshot. Past cards stay immutable.
   MRE never performs HTTP or stores website credentials.
 

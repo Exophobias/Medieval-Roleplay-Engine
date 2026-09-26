@@ -61,24 +61,35 @@ class CharacterHistoryRepositoryTest {
     }
 
     @Test
-    void archivedStoryAndVisibilitySurviveReloadWhileSchemaOneDefaultsToPrivateBlanks()
+    void archivedNationalityAndStorySurviveReloadWhileOlderSchemasDefaultNationalityBlank()
             throws Exception {
         CharacterHistoryRepository repository = repository();
         CharacterRecord withStory = new CharacterRecord(
                 UUID.randomUUID(), PLAYER_ID, "Account", CharacterStatus.DECEASED,
-                1L, 100L, 90L, APPROVER_ID, "Reason", "Ysabet", "Human",
+                1L, 100L, 90L, APPROVER_ID, "Reason", "Ysabet", "Human", "Western March",
                 "Northmarcher", 30, "Unspecified", "None", "A red cloak", "Sailor",
                 "Born at sea.\nRaised ashore.", "Counts coins twice.", "Find home",
                 "A short past.\nA longer journey.", true);
         repository.archive(withStory);
+        Path file = temporaryDirectory.resolve("history").resolve(PLAYER_ID.toString())
+                .resolve("100.yml");
+        assertTrue(Files.readString(file).contains("schema-version: 3"));
         CharacterHistoryRepository firstReload = repository();
         firstReload.load();
         assertEquals(withStory, firstReload.character(withStory.characterId()).orElseThrow());
 
-        Path file = temporaryDirectory.resolve("history").resolve(PLAYER_ID.toString())
-                .resolve("100.yml");
         YamlConfiguration old = new YamlConfiguration();
         old.loadFromString(Files.readString(file));
+        old.set("schema-version", 2);
+        old.set("fields.nationality", null);
+        Files.writeString(file, old.saveToString());
+        CharacterHistoryRepository schemaTwo = repository();
+        schemaTwo.load();
+        CharacterRecord two = schemaTwo.character(withStory.characterId()).orElseThrow();
+        assertEquals("", two.nationality());
+        assertEquals(withStory.originDescription(), two.originDescription());
+        assertTrue(two.showStoryPublicly());
+
         old.set("schema-version", 1);
         old.set("fields.appearance", null);
         old.set("fields.calling", null);
@@ -94,6 +105,7 @@ class CharacterHistoryRepositoryTest {
         CharacterRecord legacy = reloaded.character(withStory.characterId()).orElseThrow();
         assertEquals("", legacy.originDescription());
         assertEquals("", legacy.backstory());
+        assertEquals("", legacy.nationality());
         assertFalse(legacy.showStoryPublicly());
         assertEquals(withStory.characterId(), legacy.characterId());
     }
@@ -110,6 +122,25 @@ class CharacterHistoryRepositoryTest {
         assertThrows(UnsupportedOperationException.class, playerHistory::clear);
         assertThrows(UnsupportedOperationException.class, all::clear);
         assertEquals(record, repository.character(record.characterId()).orElseThrow());
+    }
+
+    @Test
+    void incompleteSchemaThreeNationalityIsRejectedWithoutInventingAnArchive() throws Exception {
+        CharacterHistoryRepository writer = repository();
+        CharacterRecord valid = deceased(UUID.randomUUID(), 100L, "Valid");
+        writer.archive(valid);
+
+        Path file = temporaryDirectory.resolve("history").resolve(PLAYER_ID.toString())
+                .resolve("100.yml");
+        YamlConfiguration incomplete = new YamlConfiguration();
+        incomplete.loadFromString(Files.readString(file));
+        incomplete.set("fields.nationality", null);
+        Files.writeString(file, incomplete.saveToString());
+
+        CharacterHistoryRepository loaded = repository();
+        loaded.load();
+        assertTrue(loaded.history(PLAYER_ID).isEmpty());
+        assertFalse(loaded.character(valid.characterId()).isPresent());
     }
 
     @Test

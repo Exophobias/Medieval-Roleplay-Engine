@@ -46,10 +46,16 @@ public class Messenger {
         player.sendMessage(ChatColor.BOLD + "" + medievalRoleplayEngine.colorChecker.getNeutralAlertColor()
                 + "\n----------\nCharacter Card of " + accountName + "\n----------\n");
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Name: " + card.getName());
-        player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Race: " + card.getRace());
+        if (!card.getNationality().isBlank()) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor()
+                    + "Character Nationality: " + card.getNationality());
+        }
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Subculture: " + card.getSubculture());
         player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Age: " + card.getAge());
-        player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "Gender: " + card.getGender());
+        if (!card.getGender().isBlank() && !CharacterCard.DEFAULT_GENDER.equals(card.getGender())) {
+            player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor()
+                    + "Sex/Gender: " + card.getGender());
+        }
         if (medievalRoleplayEngine.getConfig().getBoolean("legacyReligionFieldEnabled", false)) {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor()
                     + "Biography religion (not authoritative): " + card.getReligion());

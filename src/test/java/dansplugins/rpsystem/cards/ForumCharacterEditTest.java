@@ -35,6 +35,7 @@ class ForumCharacterEditTest {
         assertEquals(Status.APPLIED, created.status());
         assertEquals(CharacterStatus.ACTIVE, created.current().status());
         assertEquals("Player", created.current().lastKnownPlayerName());
+        assertEquals(CharacterCard.CANONICAL_RACE, created.current().race());
         assertEquals(1, fixture.created.size());
         assertEquals(1, fixture.manifestWrites.get());
         assertEquals(1, fixture.startedCooldown.size());
@@ -50,7 +51,8 @@ class ForumCharacterEditTest {
         ForumCharacterEditResult updated = fixture.service.applyForumEdit(update);
         assertEquals(Status.APPLIED, updated.status());
         assertEquals(created.current().characterId(), updated.current().characterId());
-        assertEquals("Dwarf", updated.current().race());
+        assertEquals("Dwarf", updated.current().nationality());
+        assertEquals(CharacterCard.CANONICAL_RACE, updated.current().race());
         assertEquals(1, fixture.updated.size());
         assertEquals(1, fixture.manifestWrites.get());
         assertEquals(Status.STALE, fixture.service.applyForumEdit(
@@ -105,11 +107,40 @@ class ForumCharacterEditTest {
     }
 
     @Test
+    void nationalityAndSexGenderCanStayBlankWithoutHidingACompleteCharacter() {
+        Fixture fixture = fixture(ignored -> true);
+        ForumCharacterEditResult created = fixture.service.applyForumEdit(new ForumCharacterEdit(
+                fixture.player, null, null, "Elowen", "", "Northmarcher", 37, ""));
+
+        assertEquals(Status.APPLIED, created.status());
+        assertEquals("", created.current().nationality());
+        assertEquals("", created.current().gender());
+        assertEquals(CharacterCard.CANONICAL_RACE, created.current().race());
+        assertTrue(created.current().isPubliclyVisible());
+
+        ForumCharacterEditResult changed = fixture.service.applyForumEdit(new ForumCharacterEdit(
+                fixture.player, created.current().characterId(), created.current().editFingerprint(),
+                "Elowen", "Western March", "Northmarcher", 37, "Woman"));
+        assertEquals(Status.APPLIED, changed.status());
+        assertEquals("Western March", changed.current().nationality());
+        assertEquals("Woman", changed.current().gender());
+        assertTrue(changed.current().isPubliclyVisible());
+
+        ForumCharacterEditResult cleared = fixture.service.applyForumEdit(new ForumCharacterEdit(
+                fixture.player, changed.current().characterId(), changed.current().editFingerprint(),
+                "Elowen", "", "Northmarcher", 37, ""));
+        assertEquals(Status.APPLIED, cleared.status());
+        assertEquals("", cleared.current().nationality());
+        assertEquals("", cleared.current().gender());
+    }
+
+    @Test
     void archivedCharacterCannotBeEditedOrReplaceNewDraft() {
         Fixture fixture = fixture(ignored -> true);
         CharacterCard active = CharacterCard.newDraft(fixture.player, "Player", 100L);
         active.setName("Aldric");
         active.setRace("Human");
+        active.setNationality("Northern Kingdom");
         active.setOriginDescription("A village by the river.\nFar from the capital.");
         active.setBackstory("The long road home.");
         active.setShowStoryPublicly(true);
@@ -128,6 +159,7 @@ class ForumCharacterEditTest {
         assertNotEquals(before.characterId(), result.current().characterId());
         assertEquals(1, fixture.history.history(fixture.player).size());
         assertEquals("Human", fixture.history.history(fixture.player).getFirst().race());
+        assertEquals("Northern Kingdom", fixture.history.history(fixture.player).getFirst().nationality());
         assertEquals(before.originDescription(),
                 fixture.history.history(fixture.player).getFirst().originDescription());
         assertEquals(before.backstory(),
@@ -151,7 +183,7 @@ class ForumCharacterEditTest {
         fixture.cooldowns.add(fixture.player);
 
         ForumCharacterEdit story = new ForumCharacterEdit(fixture.player, before.characterId(),
-                before.editFingerprint(), "Aldric", "Human", "Northmarcher", 37, "Female",
+                before.editFingerprint(), "Aldric", "", "Northmarcher", 37, "Female",
                 "Dark hair", "Sailor", "Born at sea.\nRaised ashore.", "Speaks softly",
                 "Find home", "A short past.\nA longer journey.", true);
         ForumCharacterEditResult saved = fixture.service.applyForumEdit(story);
@@ -182,17 +214,17 @@ class ForumCharacterEditTest {
         assertEquals(Status.INVALID, fixture.service.applyForumEdit(
                 edit(fixture.player, before.characterId(), before.editFingerprint(),
                         "", "Human")).status());
-        ForumCharacterEditResult raceOnly = fixture.service.applyForumEdit(
+        ForumCharacterEditResult nationalityOnly = fixture.service.applyForumEdit(
                 edit(fixture.player, before.characterId(), before.editFingerprint(),
                         "Aldric", "Elf"));
-        assertEquals(Status.APPLIED, raceOnly.status());
-        assertEquals("Old Shrine", raceOnly.current().religion());
+        assertEquals(Status.APPLIED, nationalityOnly.status());
+        assertEquals("Old Shrine", nationalityOnly.current().religion());
         assertTrue(fixture.startedCooldown.isEmpty());
         fixture.cooldowns.clear();
 
         assertEquals(Status.APPLIED, fixture.service.applyForumEdit(
                 edit(fixture.player, before.characterId(),
-                        raceOnly.current().editFingerprint(), "Borin", "Elf")).status());
+                        nationalityOnly.current().editFingerprint(), "Borin", "Elf")).status());
         assertEquals(List.of(fixture.player), fixture.startedCooldown);
     }
 
@@ -267,8 +299,8 @@ class ForumCharacterEditTest {
     }
 
     private static ForumCharacterEdit edit(UUID player, UUID character, String fingerprint,
-                                            String name, String race) {
-        return new ForumCharacterEdit(player, character, fingerprint, name, race,
+                                            String name, String nationality) {
+        return new ForumCharacterEdit(player, character, fingerprint, name, nationality,
                 "Northmarcher", 37, "Female");
     }
 

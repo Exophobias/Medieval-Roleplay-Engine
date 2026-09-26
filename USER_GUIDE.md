@@ -13,7 +13,7 @@
 After installing the plugin and restarting your server:
 
 1. Join the server as a player.
-2. Run `/card` to view your character card. A card is created automatically the first time you join, with placeholder values: the name is `defaultName`, race `defaultRace`, subculture `defaultSubculture`, gender `defaultGender`, religion `defaultReligion`, and age `0`.
+2. Run `/card` to view your character card. A draft is created automatically the first time you join. Name and subculture start unset; nationality and Sex/Gender are optional and blank. All characters are Olzharian internally, so race is not a sheet field.
 3. Use `/card name <name>` to set your character's name.
 4. Use `/rphelp` to see a list of all available commands.
 
@@ -25,10 +25,10 @@ Your character card holds your roleplay identity:
 
 ```
 /card name <name>         – Set your character's name
-/card race <race>         – Set your character's race
+/card nationality <nationality|clear> – Set or clear optional character nationality
 /card subculture <subculture> – Set your character's subculture
 /card age <age>           – Set your character's age
-/card gender <gender>     – Set your character's gender
+/card gender <sex/gender|clear> – Set or clear optional Sex/Gender
 /card religion <religion> – Set your character's religion
 /card                     – View your own card
 /card lookup <player>     – View another player's card
@@ -84,15 +84,15 @@ Supported formats:
 
 ### Using Placeholders
 
-If [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) is installed, Medieval Roleplay Engine registers an expansion with the identifier `medievalroleplayengine`, exposing character card data to any plugin that supports placeholders (e.g. TAB, essentials-style scoreboards, chat formatters). Placeholders resolve for the player they're evaluated for; every player is assigned a character card automatically on join, so these placeholders are populated for any currently online player. Until a field has been set with `/card`, the placeholder resolves to that field's placeholder value (for example `defaultName`).
+If [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) is installed, Medieval Roleplay Engine registers an expansion with the identifier `medievalroleplayengine`, exposing public-safe character card data to any plugin that supports placeholders. Incomplete drafts return empty values. Optional nationality and Sex/Gender return empty values when left blank.
 
 | Placeholder | Description |
 |---|---|
 | `%medievalroleplayengine_card_name%` | The player's character name |
 | `%medievalroleplayengine_card_age%` | The player's character age |
-| `%medievalroleplayengine_card_race%` | The player's character race |
+| `%medievalroleplayengine_card_nationality%` | The player's optional character nationality |
 | `%medievalroleplayengine_card_subculture%` | The player's character subculture |
-| `%medievalroleplayengine_card_gender%` | The player's character gender |
+| `%medievalroleplayengine_card_gender%` | The player's optional Sex/Gender |
 | `%medievalroleplayengine_card_religion%` | The player's character religion |
 
 **Example (TAB plugin `config.yml`):**
@@ -114,11 +114,11 @@ The table below lists the nodes registered by the plugin in `plugin.yml`. Every 
 | `rp.card.lookup` | `true` | View another player's character card |
 | `rp.card.help` | `true` | View character card help |
 | `rp.card.name` | `true` | Set your character's name |
-| `rp.card.race` | `true` | Set your character's race |
+| `rp.card.nationality` | `true` | Set or clear optional character nationality |
 | `rp.card.subculture` | `true` | Set your character's subculture |
 | `rp.card.religion` | `true` | Set your character's religion |
 | `rp.card.age` | `true` | Set your character's age |
-| `rp.card.gender` | `true` | Set your character's gender |
+| `rp.card.gender` | `true` | Set or clear optional Sex/Gender |
 | `rp.local` | `true` | Use local roleplay chat |
 | `rp.rp` | `true` | Alias for local chat |
 | `rp.global` | `true` | Use global OOC chat |

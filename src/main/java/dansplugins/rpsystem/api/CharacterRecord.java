@@ -28,6 +28,7 @@ public record CharacterRecord(
         String endReason,
         String name,
         String race,
+        String nationality,
         String subculture,
         int age,
         String gender,
@@ -42,6 +43,7 @@ public record CharacterRecord(
 
     /** Largest age accepted by the interactive editor and public integrations. */
     public static final int MAX_PUBLIC_AGE = 1_000_000;
+    public static final int MAX_NATIONALITY_LENGTH = 128;
     public static final int MAX_APPEARANCE_LENGTH = 300;
     public static final int MAX_CALLING_LENGTH = 120;
     public static final int MAX_ORIGIN_DESCRIPTION_LENGTH = 300;
@@ -56,8 +58,33 @@ public record CharacterRecord(
                            String name, String race, String subculture, int age, String gender,
                            String religion) {
         this(characterId, playerId, lastKnownPlayerName, status, createdAt, endedAt,
-                deathDeclaredAt, deathApprovedBy, endReason, name, race, subculture, age,
+                deathDeclaredAt, deathApprovedBy, endReason, name, race, "", subculture, age,
                 gender, religion, "", "", "", "", "", "", false);
+    }
+
+    /** A record without optional story fields. */
+    public CharacterRecord(UUID characterId, UUID playerId, String lastKnownPlayerName,
+                           CharacterStatus status, long createdAt, long endedAt,
+                           long deathDeclaredAt, UUID deathApprovedBy, String endReason,
+                           String name, String race, String nationality, String subculture,
+                           int age, String gender, String religion) {
+        this(characterId, playerId, lastKnownPlayerName, status, createdAt, endedAt,
+                deathDeclaredAt, deathApprovedBy, endReason, name, race, nationality, subculture,
+                age, gender, religion, "", "", "", "", "", "", false);
+    }
+
+    /** Compatibility for schema-2 records and integrations without nationality. */
+    public CharacterRecord(UUID characterId, UUID playerId, String lastKnownPlayerName,
+                           CharacterStatus status, long createdAt, long endedAt,
+                           long deathDeclaredAt, UUID deathApprovedBy, String endReason,
+                           String name, String race, String subculture, int age, String gender,
+                           String religion, String appearance, String calling,
+                           String originDescription, String mannerisms, String currentGoal,
+                           String backstory, boolean showStoryPublicly) {
+        this(characterId, playerId, lastKnownPlayerName, status, createdAt, endedAt,
+                deathDeclaredAt, deathApprovedBy, endReason, name, race, "", subculture, age,
+                gender, religion, appearance, calling, originDescription, mannerisms,
+                currentGoal, backstory, showStoryPublicly);
     }
 
     public CharacterRecord {
@@ -68,8 +95,12 @@ public record CharacterRecord(
         endReason = clean(endReason);
         name = clean(name);
         race = clean(race);
+        nationality = clean(nationality);
         subculture = clean(subculture);
         gender = clean(gender);
+        if (gender.equalsIgnoreCase("defaultGender")) {
+            gender = "";
+        }
         religion = clean(religion);
         appearance = cleanStoryText(appearance, MAX_APPEARANCE_LENGTH);
         calling = cleanStoryText(calling, MAX_CALLING_LENGTH);
@@ -115,12 +146,12 @@ public record CharacterRecord(
     public String editFingerprint() {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update("MRE-forum-edit-v2".getBytes(StandardCharsets.US_ASCII));
+            digest.update("MRE-forum-edit-v3".getBytes(StandardCharsets.US_ASCII));
             updateUuid(digest, characterId);
             updateUuid(digest, playerId);
             digest.update(ByteBuffer.allocate(Long.BYTES).putLong(createdAt).array());
             updateString(digest, name);
-            updateString(digest, race);
+            updateString(digest, nationality);
             updateString(digest, subculture);
             digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(age).array());
             updateString(digest, gender);
@@ -159,9 +190,7 @@ public record CharacterRecord(
                 && createdAt > 0
                 && age <= MAX_PUBLIC_AGE
                 && isSet(name, "defaultName")
-                && isSet(race, "defaultRace")
                 && isSet(subculture, "defaultSubculture")
-                && isSet(gender, "defaultGender")
                 && (isCurrent() || endedAt >= createdAt);
     }
 

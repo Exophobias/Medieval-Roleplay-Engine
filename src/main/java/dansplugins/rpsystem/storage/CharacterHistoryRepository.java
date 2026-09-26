@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 /** Append-only, UUID-indexed repository for characters ended by approved true death. */
 public final class CharacterHistoryRepository {
 
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
 
     private final Path historyDirectory;
     private final Logger logger;
@@ -167,7 +167,7 @@ public final class CharacterHistoryRepository {
             throw new IOException("invalid YAML", e);
         }
         int schemaVersion = yaml.getInt("schema-version");
-        if (schemaVersion != 1 && schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion < 1 || schemaVersion > SCHEMA_VERSION) {
             throw new IOException("unsupported schema version " + yaml.get("schema-version"));
         }
 
@@ -184,6 +184,7 @@ public final class CharacterHistoryRepository {
                     yaml.getString("death.reason", ""),
                     yaml.getString("fields.name", ""),
                     yaml.getString("fields.race", ""),
+                    schemaVersion < 3 ? "" : story(yaml, "fields.nationality"),
                     yaml.getString("fields.subculture", ""),
                     yaml.getInt("fields.age"),
                     yaml.getString("fields.gender", ""),
@@ -194,7 +195,7 @@ public final class CharacterHistoryRepository {
                     schemaVersion == 1 ? "" : story(yaml, "fields.mannerisms"),
                     schemaVersion == 1 ? "" : story(yaml, "fields.current-goal"),
                     schemaVersion == 1 ? "" : story(yaml, "fields.backstory"),
-                    schemaVersion == 2 && visibility(yaml));
+                    schemaVersion >= 2 && visibility(yaml));
         } catch (IllegalArgumentException e) {
             throw new IOException("invalid character value", e);
         }
@@ -214,6 +215,7 @@ public final class CharacterHistoryRepository {
         yaml.set("death.reason", record.endReason());
         yaml.set("fields.name", record.name());
         yaml.set("fields.race", record.race());
+        yaml.set("fields.nationality", record.nationality());
         yaml.set("fields.subculture", record.subculture());
         yaml.set("fields.age", record.age());
         yaml.set("fields.gender", record.gender());

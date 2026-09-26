@@ -18,7 +18,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CharacterPlanExtensionTest {
@@ -58,6 +57,7 @@ class CharacterPlanExtensionTest {
         assertFalse(rendered.contains(PRIVATE_RELIGION));
         assertFalse(rendered.contains(PRIVATE_END_REASON));
         assertFalse(rendered.contains(APPROVER.toString()));
+        assertFalse(rendered.contains("Human"));
         for (CharacterRecord record : records()) {
             assertFalse(rendered.contains(record.characterId().toString()));
         }
@@ -70,7 +70,7 @@ class CharacterPlanExtensionTest {
         assertTrue(extension.hasActiveCharacter(ACTIVE_PLAYER));
         assertFalse(extension.hasActiveCharacter(DRAFT_PLAYER));
         assertEquals("Aldric", extension.currentCharacterName(ACTIVE_PLAYER));
-        assertEquals("Human", extension.currentRace(ACTIVE_PLAYER));
+        assertEquals("Western March", extension.currentNationality(ACTIVE_PLAYER));
         assertEquals("Northman", extension.currentSubculture(ACTIVE_PLAYER));
         assertEquals(34L, extension.currentAge(ACTIVE_PLAYER));
         assertEquals("Man", extension.currentGender(ACTIVE_PLAYER));
@@ -80,10 +80,10 @@ class CharacterPlanExtensionTest {
         assertEquals(1, historyRows.size());
         Object[] row = historyRows.getFirst();
         assertEquals("Edric", row[0]);
-        assertEquals("Human / Northman", row[1]);
-        assertEquals("Deceased", row[2]);
-        assertEquals(2_000L, row[3]);
-        assertNull(row[4]);
+        assertEquals("Eastern Realm", row[1]);
+        assertEquals("Northman", row[2]);
+        assertEquals("Deceased", row[3]);
+        assertEquals(2_000L, row[4]);
     }
 
     private static CharacterPlanExtension extension(List<CharacterRecord> records) {
@@ -103,6 +103,7 @@ class CharacterPlanExtensionTest {
                 "",
                 "Aldric",
                 "Human",
+                "Western March",
                 "Northman",
                 34,
                 "Man",
@@ -119,6 +120,7 @@ class CharacterPlanExtensionTest {
                 PRIVATE_END_REASON,
                 "Edric",
                 "Human",
+                "Eastern Realm",
                 "Northman",
                 62,
                 "Man",

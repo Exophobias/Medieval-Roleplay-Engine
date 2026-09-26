@@ -17,6 +17,7 @@ public final class CharacterCard {
 
     public static final String DEFAULT_NAME = "defaultName";
     public static final String DEFAULT_RACE = "defaultRace";
+    public static final String CANONICAL_RACE = "Olzharian";
     public static final String DEFAULT_SUBCULTURE = "defaultSubculture";
     public static final String DEFAULT_GENDER = "defaultGender";
     public static final String DEFAULT_RELIGION = "defaultReligion";
@@ -28,6 +29,7 @@ public final class CharacterCard {
     private String lastKnownPlayerName;
     private String name;
     private String race;
+    private String nationality;
     private String subculture;
     private int age;
     private String gender;
@@ -43,18 +45,18 @@ public final class CharacterCard {
 
     public CharacterCard(UUID playerUUID) {
         this(playerUUID, UUID.randomUUID(), System.currentTimeMillis(), "",
-                DEFAULT_NAME, DEFAULT_RACE, DEFAULT_SUBCULTURE, 0,
-                DEFAULT_GENDER, DEFAULT_RELIGION, "", "", "", "", "", "", false, false);
+                DEFAULT_NAME, CANONICAL_RACE, "", DEFAULT_SUBCULTURE, 0,
+                "", DEFAULT_RELIGION, "", "", "", "", "", "", false, false);
     }
 
     public static CharacterCard newDraft(UUID playerUUID, String playerName, long createdAt) {
         return new CharacterCard(playerUUID, UUID.randomUUID(), Math.max(0, createdAt), playerName,
-                DEFAULT_NAME, DEFAULT_RACE, DEFAULT_SUBCULTURE, 0,
-                DEFAULT_GENDER, DEFAULT_RELIGION, "", "", "", "", "", "", false, false);
+                DEFAULT_NAME, CANONICAL_RACE, "", DEFAULT_SUBCULTURE, 0,
+                "", DEFAULT_RELIGION, "", "", "", "", "", "", false, false);
     }
 
     private CharacterCard(UUID playerUUID, UUID characterId, long createdAt,
-                          String lastKnownPlayerName, String name, String race,
+                          String lastKnownPlayerName, String name, String race, String nationality,
                           String subculture, int age, String gender, String religion,
                           String appearance, String calling, String originDescription,
                           String mannerisms, String currentGoal, String backstory,
@@ -69,6 +71,7 @@ public final class CharacterCard {
         this.lastKnownPlayerName = clean(lastKnownPlayerName);
         this.name = clean(name);
         this.race = clean(race);
+        this.nationality = clean(nationality);
         this.subculture = clean(subculture);
         this.age = checkedAge(age);
         this.gender = clean(gender);
@@ -89,10 +92,11 @@ public final class CharacterCard {
         this.needsMigration = needsMigration;
     }
 
-    /** Reads seven-line legacy cards, ten-line cards, and the full story extension. */
+    /** Reads legacy cards, schema-2 story cards, and schema-3 nationality cards. */
     public static CharacterCard fromLines(List<String> lines, long fallbackCreatedAt) {
-        if (lines == null || lines.size() < 7 || (lines.size() > 10 && lines.size() != 17)) {
-            throw new IllegalArgumentException("a character card must contain 7-10 or 17 lines");
+        if (lines == null || lines.size() < 7
+                || (lines.size() > 10 && lines.size() != 17 && lines.size() != 18)) {
+            throw new IllegalArgumentException("a character card must contain 7-10, 17 or 18 lines");
         }
 
         UUID playerId = UUID.fromString(lines.get(0).trim());
@@ -103,14 +107,15 @@ public final class CharacterCard {
                 ? Long.parseLong(lines.get(8).trim())
                 : Math.max(0, fallbackCreatedAt);
         String accountName = lines.size() > 9 ? lines.get(9) : "";
-        boolean hasStory = lines.size() == 17;
+        boolean hasStory = lines.size() >= 17;
         String visibility = hasStory ? lines.get(16) : "false";
         if (!visibility.equals("true") && !visibility.equals("false")) {
             throw new IllegalArgumentException("invalid story visibility");
         }
 
         return new CharacterCard(playerId, characterId, createdAt, accountName,
-                lines.get(1), lines.get(2), lines.get(3), Integer.parseInt(lines.get(4).trim()),
+                lines.get(1), lines.get(2), lines.size() == 18 ? lines.get(17) : "",
+                lines.get(3), Integer.parseInt(lines.get(4).trim()),
                 lines.get(5), lines.get(6),
                 hasStory ? decodeStory(lines.get(10)) : "",
                 hasStory ? decodeStory(lines.get(11)) : "",
@@ -118,11 +123,11 @@ public final class CharacterCard {
                 hasStory ? decodeStory(lines.get(13)) : "",
                 hasStory ? decodeStory(lines.get(14)) : "",
                 hasStory ? decodeStory(lines.get(15)) : "",
-                Boolean.parseBoolean(visibility), lines.size() < 10);
+                Boolean.parseBoolean(visibility), lines.size() < 18);
     }
 
     public synchronized List<String> serializedLines() {
-        List<String> lines = new ArrayList<>(17);
+        List<String> lines = new ArrayList<>(18);
         lines.add(playerUUID.toString());
         lines.add(name);
         lines.add(race);
@@ -140,6 +145,7 @@ public final class CharacterCard {
         lines.add(encodeStory(currentGoal));
         lines.add(encodeStory(backstory));
         lines.add(Boolean.toString(showStoryPublicly));
+        lines.add(nationality);
         return List.copyOf(lines);
     }
 
@@ -183,6 +189,14 @@ public final class CharacterCard {
 
     public synchronized String getRace() {
         return race;
+    }
+
+    public synchronized void setNationality(String value) {
+        nationality = clean(value);
+    }
+
+    public synchronized String getNationality() {
+        return nationality;
     }
 
     public synchronized void setSubculture(String newSubculture) {
@@ -320,6 +334,7 @@ public final class CharacterCard {
         lastKnownPlayerName = snapshot.lastKnownPlayerName();
         name = snapshot.name();
         race = snapshot.race();
+        nationality = snapshot.nationality();
         subculture = snapshot.subculture();
         age = snapshot.age();
         gender = snapshot.gender();
@@ -336,7 +351,7 @@ public final class CharacterCard {
     private CharacterRecord record(CharacterStatus status, long endedAt, long declaredAt,
                                    UUID approvedBy, String reason) {
         return new CharacterRecord(characterId, playerUUID, lastKnownPlayerName, status,
-                createdAt, endedAt, declaredAt, approvedBy, clean(reason), name, race,
+                createdAt, endedAt, declaredAt, approvedBy, clean(reason), name, race, nationality,
                 subculture, age, gender, religion, appearance, calling, originDescription,
                 mannerisms, currentGoal, backstory, showStoryPublicly);
     }

@@ -43,13 +43,14 @@ class CharacterCardTest {
         assertEquals(CharacterStatus.ACTIVE, card.snapshot().status());
 
         List<String> migrated = card.serializedLines();
-        assertEquals(17, migrated.size());
+        assertEquals(18, migrated.size());
         assertEquals(legacy, migrated.subList(0, 7));
         assertEquals(card.getCharacterId().toString(), migrated.get(7));
         assertEquals("12345", migrated.get(8));
         assertEquals("", migrated.get(9));
         assertEquals(List.of("-", "-", "-", "-", "-", "-", "false"),
                 migrated.subList(10, 17));
+        assertEquals("", migrated.get(17));
 
         card.markPersisted();
         assertFalse(card.needsMigration());
@@ -63,7 +64,7 @@ class CharacterCardTest {
         CharacterCard first = CharacterCard.fromLines(persisted, 999L);
         CharacterCard second = CharacterCard.fromLines(first.serializedLines(), 123L);
 
-        assertFalse(first.needsMigration());
+        assertTrue(first.needsMigration());
         assertFalse(second.needsMigration());
         assertEquals(persisted, first.serializedLines().subList(0, 10));
         assertEquals(first.serializedLines(), second.serializedLines());
@@ -71,6 +72,7 @@ class CharacterCardTest {
         assertEquals(CHARACTER_ID, second.getCharacterId());
         assertEquals(42_000L, second.getCreatedAt());
         assertEquals("AccountName", second.getLastKnownPlayerName());
+        assertEquals("", second.getNationality());
     }
 
     @Test
@@ -79,6 +81,7 @@ class CharacterCardTest {
         card.setName("Ysabet");
         card.setAppearance("A scar beneath one eye.\nWears a red cloak.");
         card.setCalling("Sailor");
+        card.setNationality("Western March");
         card.setOriginDescription("Born on a fishing boat.\nRaised beside the northern harbour.");
         card.setMannerisms("Counts coins twice.");
         card.setCurrentGoal("Find a missing sibling.");
@@ -91,6 +94,13 @@ class CharacterCardTest {
         assertEquals("Born on a fishing boat.\nRaised beside the northern harbour.",
                 loaded.snapshot().originDescription());
         assertTrue(loaded.snapshot().showStoryPublicly());
+        assertEquals("Western March", loaded.snapshot().nationality());
+
+        CharacterCard schemaTwo = CharacterCard.fromLines(card.serializedLines().subList(0, 17), 0L);
+        assertTrue(schemaTwo.needsMigration());
+        assertEquals("", schemaTwo.getNationality());
+        assertEquals(card.getOriginDescription(), schemaTwo.getOriginDescription());
+        assertTrue(schemaTwo.isShowStoryPublicly());
 
         CharacterRecord saved = loaded.snapshot();
         loaded.setBackstory("Changed");
@@ -164,11 +174,13 @@ class CharacterCardTest {
         CharacterCard card = CharacterCard.newDraft(PLAYER_ID, " Account\r\nName ", -10L);
         card.setName("  A\r\nB\0C  ");
         card.setRace("x".repeat(200));
+        card.setNationality("n".repeat(200));
 
         assertEquals(0L, card.getCreatedAt());
         assertEquals("Account  Name", card.getLastKnownPlayerName());
         assertEquals("A  B C", card.getName());
         assertEquals(128, card.getRace().length());
+        assertEquals(128, card.getNationality().length());
         assertThrows(IllegalArgumentException.class, () -> card.setAge(-1));
         assertThrows(IllegalArgumentException.class,
                 () -> CharacterCard.fromLines(List.of("too", "short"), 0L));

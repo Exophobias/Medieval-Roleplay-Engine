@@ -43,8 +43,8 @@ public class CommandService {
                     command.changeName(sender, args);
                     return true;
                 }
-                else if (args[0].equalsIgnoreCase("race")) {
-                    command.changeRace(sender, args);
+                else if (args[0].equalsIgnoreCase("nationality")) {
+                    command.changeNationality(sender, args);
                     return true;
                 }
                 else if (args[0].equalsIgnoreCase("subculture")) {
@@ -70,7 +70,7 @@ public class CommandService {
                     return command.forceLoad(sender);
                 }
 
-                sender.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sub-commands: help, lookup, name, race, subculture, religion, age, gender, forcesave, forceload");
+                sender.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sub-commands: help, lookup, name, nationality, subculture, religion, age, gender, forcesave, forceload");
             }
         }
 

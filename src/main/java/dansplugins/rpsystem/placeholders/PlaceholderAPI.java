@@ -53,7 +53,7 @@ public class PlaceholderAPI extends PlaceholderExpansion {
 
         boolean known = params.equals("card_name")
                 || params.equals("card_age")
-                || params.equals("card_race")
+                || params.equals("card_nationality")
                 || params.equals("card_subculture")
                 || params.equals("card_gender")
                 || params.equals("card_religion")
@@ -80,8 +80,8 @@ public class PlaceholderAPI extends PlaceholderExpansion {
         if (params.equalsIgnoreCase("card_age")) {
             return Integer.toString(card.age());
         }
-        if (params.equalsIgnoreCase("card_race")) {
-            return card.race();
+        if (params.equalsIgnoreCase("card_nationality")) {
+            return card.nationality();
         }
         if (params.equalsIgnoreCase("card_subculture")) {
             return card.subculture();

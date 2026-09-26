@@ -90,16 +90,16 @@ public final class CharacterPlanExtension implements DataExtension {
     }
 
     @StringProvider(
-            text = "Race",
-            description = "The active character's race",
+            text = "Character Nationality",
+            description = "The active character's stated nationality",
             priority = 90,
             iconName = "people-group",
             iconColor = Color.BROWN)
     @Conditional(ACTIVE_CONDITION)
     @Tab("Characters")
-    public String currentRace(UUID playerId) {
+    public String currentNationality(UUID playerId) {
         return view.current(playerId)
-                .map(PlanCharacterView.PublicCharacter::race)
+                .map(PlanCharacterView.PublicCharacter::nationality)
                 .orElse("Unspecified");
     }
 
@@ -132,8 +132,8 @@ public final class CharacterPlanExtension implements DataExtension {
     }
 
     @StringProvider(
-            text = "Gender",
-            description = "The active character's stated gender",
+            text = "Sex/Gender",
+            description = "The active character's stated sex or gender",
             priority = 60,
             iconName = "venus-mars",
             iconColor = Color.PURPLE)
@@ -151,13 +151,15 @@ public final class CharacterPlanExtension implements DataExtension {
     public Table characterHistory(UUID playerId) {
         Table.Factory table = Table.builder()
                 .columnOne("Character", Icon.called("address-card").build())
-                .columnTwo("Culture", Icon.called("people-group").build())
-                .columnThree("Fate", Icon.called("flag-checkered").build())
-                .columnFour("Ended", Icon.called("calendar-xmark").build())
-                .columnFourFormat(TableColumnFormat.DATE_SECOND);
+                .columnTwo("Nationality", Icon.called("people-group").build())
+                .columnThree("Subculture", Icon.called("landmark").build())
+                .columnFour("Fate", Icon.called("flag-checkered").build())
+                .columnFive("Ended", Icon.called("calendar-xmark").build())
+                .columnFiveFormat(TableColumnFormat.DATE_SECOND);
 
         for (PlanCharacterView.PublicCharacter character : view.history(playerId)) {
-            table.addRow(character.name(), character.culture(), character.fate(), character.endedAt());
+            table.addRow(character.name(), character.nationality(), character.subculture(),
+                    character.fate(), character.endedAt());
         }
         return table.build();
     }
@@ -183,7 +185,7 @@ public final class CharacterPlanExtension implements DataExtension {
                 .columnOne("Player", Icon.called("user").build())
                 .columnOneFormat(TableColumnFormat.PLAYER_NAME)
                 .columnTwo("Character", Icon.called("address-card").build())
-                .columnThree("Race", Icon.called("people-group").build())
+                .columnThree("Nationality", Icon.called("people-group").build())
                 .columnFour("Subculture", Icon.called("landmark").build())
                 .columnFive("Age", Icon.called("cake-candles").build());
 
@@ -194,7 +196,7 @@ public final class CharacterPlanExtension implements DataExtension {
             table.addRow(
                     character.playerName(),
                     character.name(),
-                    character.race(),
+                    character.nationality(),
                     character.subculture(),
                     character.age());
         }

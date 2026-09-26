@@ -50,12 +50,15 @@ plugins/MedievalRoleplayEngine/
   <account-uuid>.txt
 ```
 
-Lines one through seven remain account UUID, character name, race, subculture, age, gender and the
-legacy religion field. The fork appends character UUID, creation time in Unix epoch milliseconds,
+Lines one through seven remain account UUID, character name, legacy race, subculture, age, gender and
+the legacy religion field. The fork appends character UUID, creation time in Unix epoch milliseconds,
 and last known account name. Six optional story fields and one public visibility flag follow as
 seven more lines; the six text values are Base64-encoded UTF-8 so descriptive line breaks survive.
+Line 18 stores optional character nationality. New cards store Olzharian internally for the legacy
+race slot, but race is no longer editable or shown on character surfaces.
 A seven-line card receives those identifiers on its first successful load and is rewritten atomically.
-Ten-line cards remain readable and default to blank private story fields. The manifest is also rebuilt
+Ten- and 17-line cards remain readable and default to blank nationality; ten-line cards also default
+to blank private story fields. The manifest is also rebuilt
 from UUID card files, so a crash
 between the card and manifest writes does not orphan a character.
 
@@ -70,8 +73,9 @@ History YAML has an explicit schema version and contains the immutable character
 public TrueDeath reason and timestamps. The state file is an idempotency journal of exact death
 identities, not a second copy of PatriamUtils data. Writes use a same-directory temporary file,
 forced file contents, and atomic replacement where the filesystem supports it.
-Schema-2 archives preserve all six story fields and their visibility flag. Existing schema-1 archives
-load those optional values as blank and private; they are never rewritten by this migration.
+Schema-3 archives preserve nationality, all six story fields and their visibility flag. Existing
+schema-1 and schema-2 archives load nationality as blank; schema-1 story fields load blank and private.
+Older archives are never rewritten by this migration.
 
 ## Migration rules
 
@@ -156,8 +160,9 @@ permissions. Plan DataExtensions are display-only. Current-card edits may be mad
 owner's verified forum page; lifecycle actions stay with PatriamUtils and MRE.
 
 The implemented extension consumes immutable MRE snapshots and publishes only complete public
-fields. Player data contains current name, race, subculture, age and gender plus ended-character
-name, culture, fate and date. The server view contains active count and a current-character table.
+fields. Player data contains current name, optional nationality, subculture, age and Sex/Gender plus
+ended-character name, nationality, subculture, fate and date. The server view contains active count
+and a current-character table.
 Religion, character IDs, death approver/declaration, reason and source records never enter the Plan
 view. Durable changes refresh the affected player and server data; bulk reload refreshes all public
 owners, and an internal Plan reload re-registers the exact extension instance. Plan absence is a
@@ -186,7 +191,7 @@ The separate private character-state snapshot includes every current `DRAFT` and
 including incomplete cards omitted from the public profile. A signed-in forum owner must have one
 unique verified Minecraft link. The forum page takes the expected character ID and opaque edit
 fingerprint only from that server-authored private state, then queues the owner's editable
-fields: name, race, subculture, age, gender, appearance, calling, descriptive place of origin,
+fields: name, optional nationality, subculture, age, optional Sex/Gender, appearance, calling, descriptive place of origin,
 mannerisms, current goal, backstory, and one story visibility flag. Past cards are shown from immutable history and
 cannot be edited or selected as a replacement for an active card. The legacy religion field is
 preserved during forum edits but is not exposed in the editor.

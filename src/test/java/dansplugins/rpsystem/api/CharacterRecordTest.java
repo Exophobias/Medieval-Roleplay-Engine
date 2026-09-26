@@ -70,16 +70,19 @@ class CharacterRecordTest {
     }
 
     @Test
-    void publicViewRequiresCompleteBoundedAndChronologicalData() {
+    void publicViewRequiresNameSubcultureAndChronologyButNotRaceOrSexGender() {
         CharacterRecord complete = record(CharacterStatus.ACTIVE, 0L, 0L, null, "");
         assertTrue(complete.isPubliclyVisible());
 
-        assertFalse(withPublicFields(complete, "defaultRace", "Culture", 30, "Gender")
+        assertTrue(withPublicFields(complete, "defaultRace", "Culture", 30, "Gender")
                 .isPubliclyVisible());
         assertFalse(withPublicFields(complete, "Race", "defaultSubculture", 30, "Gender")
                 .isPubliclyVisible());
-        assertFalse(withPublicFields(complete, "Race", "Culture", 30, "defaultGender")
+        CharacterRecord withoutGender = withPublicFields(
+                complete, "Race", "Culture", 30, "defaultGender");
+        assertTrue(withoutGender
                 .isPubliclyVisible());
+        assertEquals("", withoutGender.gender());
         assertFalse(withPublicFields(complete, "Race", "Culture", 1_000_001, "Gender")
                 .isPubliclyVisible());
 

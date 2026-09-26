@@ -17,7 +17,7 @@ softdepend:
 commands:
   card:
     description: View or update a character card.
-    usage: /card [help|lookup|name|race|subculture|religion|age|gender|forcesave|forceload]
+    usage: /card [help|lookup|name|nationality|subculture|religion|age|gender|forcesave|forceload]
   emote:
     description: Describe a nearby roleplay action.
     usage: /emote <action>
@@ -60,7 +60,7 @@ permissions:
       rp.card.show.others: true
       rp.card.help: true
       rp.card.name: true
-      rp.card.race: true
+      rp.card.nationality: true
       rp.card.subculture: true
       rp.card.religion: true
       rp.card.age: true
@@ -88,8 +88,8 @@ permissions:
   rp.card.name:
     description: Change your character name.
     default: true
-  rp.card.race:
-    description: Change your character race.
+  rp.card.nationality:
+    description: Set or clear your optional character nationality.
     default: true
   rp.card.subculture:
     description: Change your character subculture.
@@ -101,7 +101,7 @@ permissions:
     description: Change your character age.
     default: true
   rp.card.gender:
-    description: Change your character gender.
+    description: Set or clear your optional character sex/gender.
     default: true
   rp.emote:
     description: Use /emote.

@@ -118,7 +118,7 @@ final class PlanCharacterView {
     }
 
     /** Only fields approved for Plan. Deliberately contains no source record or character id. */
-    record PublicCharacter(UUID playerId, String playerName, String name, String race,
+    record PublicCharacter(UUID playerId, String playerName, String name, String nationality,
                            String subculture, int age, String gender, CharacterStatus status,
                            long endedAt) {
 
@@ -127,7 +127,7 @@ final class PlanCharacterView {
             Objects.requireNonNull(status, "status");
             playerName = clean(playerName);
             name = clean(name);
-            race = displayOrUnspecified(race, "defaultRace");
+            nationality = displayOrUnspecified(nationality, "");
             subculture = displayOrUnspecified(subculture, "defaultSubculture");
             gender = displayOrUnspecified(gender, "defaultGender");
             age = Math.max(0, age);
@@ -149,21 +149,6 @@ final class PlanCharacterView {
             return Optional.of(copyAllowedFields(record));
         }
 
-        String culture() {
-            boolean noRace = "Unspecified".equals(race);
-            boolean noSubculture = "Unspecified".equals(subculture);
-            if (noRace && noSubculture) {
-                return "Unspecified";
-            }
-            if (noRace) {
-                return subculture;
-            }
-            if (noSubculture) {
-                return race;
-            }
-            return race + " / " + subculture;
-        }
-
         String fate() {
             return status == CharacterStatus.DECEASED ? "Deceased" : "Retired";
         }
@@ -177,7 +162,7 @@ final class PlanCharacterView {
                     record.playerId(),
                     record.lastKnownPlayerName(),
                     record.name(),
-                    record.race(),
+                    record.nationality(),
                     record.subculture(),
                     record.age(),
                     record.gender(),

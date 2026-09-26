@@ -137,7 +137,7 @@ public final class CharacterServiceImpl implements CharacterService {
         }
 
         String name = cleanForumField(edit.name());
-        String race = cleanForumField(edit.race());
+        String nationality = cleanForumField(edit.nationality());
         String subculture = cleanForumField(edit.subculture());
         String gender = cleanForumField(edit.gender());
         String appearance = cleanForumStoryField(edit.appearance(),
@@ -154,7 +154,7 @@ public final class CharacterServiceImpl implements CharacterService {
                 CharacterRecord.MAX_BACKSTORY_LENGTH);
         CharacterCard existing = current.getCard(edit.playerId());
         CharacterRecord previous = existing == null ? null : existing.snapshot();
-        if (name == null || race == null || subculture == null || gender == null
+        if (name == null || nationality == null || subculture == null || gender == null
                 || appearance == null || calling == null || originDescription == null
                 || mannerisms == null || currentGoal == null || backstory == null
                 || (name.equalsIgnoreCase(CharacterCard.DEFAULT_NAME)
@@ -165,7 +165,7 @@ public final class CharacterServiceImpl implements CharacterService {
             name = CharacterCard.DEFAULT_NAME;
         }
 
-        boolean sameFields = previous != null && sameForumFields(previous, name, race,
+        boolean sameFields = previous != null && sameForumFields(previous, name, nationality,
                 subculture, edit.age(), gender, appearance, calling, originDescription,
                 mannerisms, currentGoal, backstory, edit.showStoryPublicly());
         if (existing == null) {
@@ -200,7 +200,7 @@ public final class CharacterServiceImpl implements CharacterService {
                         Math.max(1L, System.currentTimeMillis()))
                 : CharacterCard.fromLines(existing.serializedLines(), existing.getCreatedAt());
         candidate.setName(name);
-        candidate.setRace(race);
+        candidate.setNationality(nationality);
         candidate.setSubculture(subculture);
         candidate.setAge(edit.age());
         candidate.setGender(gender);
@@ -239,13 +239,13 @@ public final class CharacterServiceImpl implements CharacterService {
         return new ForumCharacterEditResult(Status.APPLIED, saved);
     }
 
-    private static boolean sameForumFields(CharacterRecord current, String name, String race,
+    private static boolean sameForumFields(CharacterRecord current, String name, String nationality,
                                            String subculture, int age, String gender,
                                            String appearance, String calling,
                                            String originDescription, String mannerisms,
                                            String currentGoal, String backstory,
                                            boolean showStoryPublicly) {
-        return current.name().equals(name) && current.race().equals(race)
+        return current.name().equals(name) && current.nationality().equals(nationality)
                 && current.subculture().equals(subculture) && current.age() == age
                 && current.gender().equals(gender)
                 && current.appearance().equals(appearance)
