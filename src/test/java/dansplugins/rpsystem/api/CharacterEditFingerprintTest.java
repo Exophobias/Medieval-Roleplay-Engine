@@ -24,6 +24,12 @@ class CharacterEditFingerprintTest {
         card.setLastKnownPlayerName("RenamedAccount");
         assertEquals(fingerprint, card.snapshot().editFingerprint());
 
+        card.setOriginDescription("Born at sea.\nRaised ashore.");
+        String withOrigin = card.snapshot().editFingerprint();
+        assertNotEquals(fingerprint, withOrigin);
+        card.setShowStoryPublicly(true);
+        assertNotEquals(withOrigin, card.snapshot().editFingerprint());
+
         card.setName("Aldric");
         assertNotEquals(fingerprint, card.snapshot().editFingerprint());
         assertNotEquals(card.snapshot().editFingerprint(),

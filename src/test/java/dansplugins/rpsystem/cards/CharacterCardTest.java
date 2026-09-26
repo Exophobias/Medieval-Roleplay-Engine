@@ -4,6 +4,7 @@ import dansplugins.rpsystem.api.CharacterRecord;
 import dansplugins.rpsystem.api.CharacterStatus;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,11 +43,13 @@ class CharacterCardTest {
         assertEquals(CharacterStatus.ACTIVE, card.snapshot().status());
 
         List<String> migrated = card.serializedLines();
-        assertEquals(10, migrated.size());
+        assertEquals(17, migrated.size());
         assertEquals(legacy, migrated.subList(0, 7));
         assertEquals(card.getCharacterId().toString(), migrated.get(7));
         assertEquals("12345", migrated.get(8));
         assertEquals("", migrated.get(9));
+        assertEquals(List.of("-", "-", "-", "-", "-", "-", "false"),
+                migrated.subList(10, 17));
 
         card.markPersisted();
         assertFalse(card.needsMigration());
@@ -62,12 +65,52 @@ class CharacterCardTest {
 
         assertFalse(first.needsMigration());
         assertFalse(second.needsMigration());
-        assertEquals(persisted, first.serializedLines());
+        assertEquals(persisted, first.serializedLines().subList(0, 10));
         assertEquals(first.serializedLines(), second.serializedLines());
         assertEquals(first.snapshot(), second.snapshot());
         assertEquals(CHARACTER_ID, second.getCharacterId());
         assertEquals(42_000L, second.getCreatedAt());
         assertEquals("AccountName", second.getLastKnownPlayerName());
+    }
+
+    @Test
+    void descriptiveStorySurvivesLineStorageAndSnapshotReplacement() {
+        CharacterCard card = CharacterCard.newDraft(PLAYER_ID, "AccountName", 50L);
+        card.setName("Ysabet");
+        card.setAppearance("A scar beneath one eye.\nWears a red cloak.");
+        card.setCalling("Sailor");
+        card.setOriginDescription("Born on a fishing boat.\nRaised beside the northern harbour.");
+        card.setMannerisms("Counts coins twice.");
+        card.setCurrentGoal("Find a missing sibling.");
+        card.setBackstory("A quiet childhood.\nThen the storm came.");
+        card.setShowStoryPublicly(true);
+
+        CharacterCard loaded = CharacterCard.fromLines(card.serializedLines(), 0L);
+        assertEquals(card.snapshot(), loaded.snapshot());
+        assertEquals(card.serializedLines(), loaded.serializedLines());
+        assertEquals("Born on a fishing boat.\nRaised beside the northern harbour.",
+                loaded.snapshot().originDescription());
+        assertTrue(loaded.snapshot().showStoryPublicly());
+
+        CharacterRecord saved = loaded.snapshot();
+        loaded.setBackstory("Changed");
+        loaded.restore(saved);
+        assertEquals(saved, loaded.snapshot());
+    }
+
+    @Test
+    void incompleteOrCorruptStoryExtensionIsRejectedInsteadOfLosingFields() {
+        ArrayList<String> incomplete = new ArrayList<>(tenLines(
+                PLAYER_ID, CHARACTER_ID, 42L, "Account", "Ysabet"));
+        incomplete.add("not-a-full-extension");
+        assertThrows(IllegalArgumentException.class,
+                () -> CharacterCard.fromLines(incomplete, 0L));
+
+        ArrayList<String> corrupt = new ArrayList<>(CharacterCard.newDraft(
+                PLAYER_ID, "Account", 42L).serializedLines());
+        corrupt.set(12, "not-valid-base64!");
+        assertThrows(IllegalArgumentException.class,
+                () -> CharacterCard.fromLines(corrupt, 0L));
     }
 
     @Test

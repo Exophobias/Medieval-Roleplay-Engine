@@ -90,6 +90,24 @@ class CharacterRecordTest {
         assertFalse(impossibleHistory.isPubliclyVisible());
     }
 
+    @Test
+    void storyTextUsesUnicodeCodePointLimitsAndPreservesDescriptionLines() {
+        String emoji = "\uD83C\uDF0A";
+        assertEquals(emoji.repeat(300), CharacterRecord.cleanStoryText(
+                emoji.repeat(300), CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
+        assertEquals("Born at sea.\nRaised ashore.", CharacterRecord.cleanStoryText(
+                "  Born at sea.\nRaised ashore.  ",
+                CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
+        assertThrows(IllegalArgumentException.class, () -> CharacterRecord.cleanStoryText(
+                emoji.repeat(301), CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
+        assertThrows(IllegalArgumentException.class, () -> CharacterRecord.cleanStoryText(
+                "A\r\nB", CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
+        assertThrows(IllegalArgumentException.class, () -> CharacterRecord.cleanStoryText(
+                "A\tB", CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
+        assertThrows(IllegalArgumentException.class, () -> CharacterRecord.cleanStoryText(
+                "\uD800", CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH));
+    }
+
     private static CharacterRecord withPublicFields(CharacterRecord source, String race,
                                                      String subculture, int age, String gender) {
         return new CharacterRecord(

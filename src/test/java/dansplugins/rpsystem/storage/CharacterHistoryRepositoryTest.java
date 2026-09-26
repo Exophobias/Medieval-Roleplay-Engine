@@ -2,6 +2,7 @@ package dansplugins.rpsystem.storage;
 
 import dansplugins.rpsystem.api.CharacterRecord;
 import dansplugins.rpsystem.api.CharacterStatus;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,6 +58,44 @@ class CharacterHistoryRepositoryTest {
         assertEquals(List.of(newer, older), reloaded.history(PLAYER_ID));
         assertEquals(CharacterHistoryRepository.ArchiveResult.ALREADY_PRESENT,
                 reloaded.archive(older));
+    }
+
+    @Test
+    void archivedStoryAndVisibilitySurviveReloadWhileSchemaOneDefaultsToPrivateBlanks()
+            throws Exception {
+        CharacterHistoryRepository repository = repository();
+        CharacterRecord withStory = new CharacterRecord(
+                UUID.randomUUID(), PLAYER_ID, "Account", CharacterStatus.DECEASED,
+                1L, 100L, 90L, APPROVER_ID, "Reason", "Ysabet", "Human",
+                "Northmarcher", 30, "Unspecified", "None", "A red cloak", "Sailor",
+                "Born at sea.\nRaised ashore.", "Counts coins twice.", "Find home",
+                "A short past.\nA longer journey.", true);
+        repository.archive(withStory);
+        CharacterHistoryRepository firstReload = repository();
+        firstReload.load();
+        assertEquals(withStory, firstReload.character(withStory.characterId()).orElseThrow());
+
+        Path file = temporaryDirectory.resolve("history").resolve(PLAYER_ID.toString())
+                .resolve("100.yml");
+        YamlConfiguration old = new YamlConfiguration();
+        old.loadFromString(Files.readString(file));
+        old.set("schema-version", 1);
+        old.set("fields.appearance", null);
+        old.set("fields.calling", null);
+        old.set("fields.origin-description", null);
+        old.set("fields.mannerisms", null);
+        old.set("fields.current-goal", null);
+        old.set("fields.backstory", null);
+        old.set("fields.show-story-publicly", null);
+        Files.writeString(file, old.saveToString());
+
+        CharacterHistoryRepository reloaded = repository();
+        reloaded.load();
+        CharacterRecord legacy = reloaded.character(withStory.characterId()).orElseThrow();
+        assertEquals("", legacy.originDescription());
+        assertEquals("", legacy.backstory());
+        assertFalse(legacy.showStoryPublicly());
+        assertEquals(withStory.characterId(), legacy.characterId());
     }
 
     @Test

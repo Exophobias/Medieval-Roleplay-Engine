@@ -16,7 +16,7 @@ one plugin.
 | TrueDeath declaration and completion | PatriamUtils | Optional read-only event/service input |
 | Self/staff analytics | Plan | Implemented read-only DataExtension |
 | Public current and past characters | NamelessMC through PatriamNamelessBridge | Implemented privacy-filtered full snapshot |
-| Private owner editing of the current card | MRE, via PatriamNamelessBridge and NamelessMC | Guarded five-field write API; MRE validates and persists |
+| Private owner editing of the current card | MRE, via PatriamNamelessBridge and NamelessMC | Guarded current-card write API; MRE validates and persists |
 
 MRE must never register `/truedeath`. PatriamUtils owns the irreversible workflow and persists the
 approval before publishing its non-cancellable `TrueDeathEvent`. MRE consumes that outcome; it does
@@ -52,8 +52,11 @@ plugins/MedievalRoleplayEngine/
 
 Lines one through seven remain account UUID, character name, race, subculture, age, gender and the
 legacy religion field. The fork appends character UUID, creation time in Unix epoch milliseconds,
-and last known account name. A seven-line card receives those identifiers on its first successful
-load and is rewritten atomically. The manifest is also rebuilt from UUID card files, so a crash
+and last known account name. Six optional story fields and one public visibility flag follow as
+seven more lines; the six text values are Base64-encoded UTF-8 so descriptive line breaks survive.
+A seven-line card receives those identifiers on its first successful load and is rewritten atomically.
+Ten-line cards remain readable and default to blank private story fields. The manifest is also rebuilt
+from UUID card files, so a crash
 between the card and manifest writes does not orphan a character.
 
 Approved deaths are archived separately:
@@ -67,6 +70,8 @@ History YAML has an explicit schema version and contains the immutable character
 public TrueDeath reason and timestamps. The state file is an idempotency journal of exact death
 identities, not a second copy of PatriamUtils data. Writes use a same-directory temporary file,
 forced file contents, and atomic replacement where the filesystem supports it.
+Schema-2 archives preserve all six story fields and their visibility flag. Existing schema-1 archives
+load those optional values as blank and private; they are never rewritten by this migration.
 
 ## Migration rules
 
@@ -121,7 +126,7 @@ archived character IDs and approval timestamps.
 ## Privacy projections
 
 The in-JVM character service returns immutable operational records and accepts a guarded edit of the
-five current-card fields. A consumer must still build an audience-specific projection; having API
+current-card fields. A consumer must still build an audience-specific projection; having API
 access does not make every field suitable for publication.
 
 - PlaceholderAPI has no reliable viewer context. Expose only complete, non-secret current roleplay
@@ -131,6 +136,10 @@ access does not make every field suitable for publication.
   Public integrations should omit it or replace it with PatriamReligion's explicitly public view.
 - Public web payloads should not expose the approving staff UUID, internal account UUIDs, sync
   watermarks or staff notes. PatriamUtils staff notes are not present in MRE's public contract at all.
+- Appearance, calling, descriptive place of origin, mannerisms, current goal and backstory are
+  private by default. The owner may publish all six together; the Bridge must redact all six from
+  public projections while `showStoryPublicly` is false. Private current and deceased-history
+  projections keep them for the verified owner.
 - OOC/staff/audit chat must retain the Minecraft account identity even if local roleplay chat later
   displays a character name. Character names are not authentication identities.
 
@@ -176,8 +185,9 @@ and XenForo/legacy `ncms_*` tables are migration evidence rather than the curren
 The separate private character-state snapshot includes every current `DRAFT` and `ACTIVE` card,
 including incomplete cards omitted from the public profile. A signed-in forum owner must have one
 unique verified Minecraft link. The forum page takes the expected character ID and opaque edit
-fingerprint only from that server-authored private state, then queues the owner's five editable
-fields: name, race, subculture, age and gender. Past cards are shown from immutable history and
+fingerprint only from that server-authored private state, then queues the owner's editable
+fields: name, race, subculture, age, gender, appearance, calling, descriptive place of origin,
+mannerisms, current goal, backstory, and one story visibility flag. Past cards are shown from immutable history and
 cannot be edited or selected as a replacement for an active card. The legacy religion field is
 preserved during forum edits but is not exposed in the editor.
 

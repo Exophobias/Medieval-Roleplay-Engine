@@ -140,9 +140,23 @@ public final class CharacterServiceImpl implements CharacterService {
         String race = cleanForumField(edit.race());
         String subculture = cleanForumField(edit.subculture());
         String gender = cleanForumField(edit.gender());
+        String appearance = cleanForumStoryField(edit.appearance(),
+                CharacterRecord.MAX_APPEARANCE_LENGTH);
+        String calling = cleanForumStoryField(edit.calling(),
+                CharacterRecord.MAX_CALLING_LENGTH);
+        String originDescription = cleanForumStoryField(edit.originDescription(),
+                CharacterRecord.MAX_ORIGIN_DESCRIPTION_LENGTH);
+        String mannerisms = cleanForumStoryField(edit.mannerisms(),
+                CharacterRecord.MAX_MANNERISMS_LENGTH);
+        String currentGoal = cleanForumStoryField(edit.currentGoal(),
+                CharacterRecord.MAX_CURRENT_GOAL_LENGTH);
+        String backstory = cleanForumStoryField(edit.backstory(),
+                CharacterRecord.MAX_BACKSTORY_LENGTH);
         CharacterCard existing = current.getCard(edit.playerId());
         CharacterRecord previous = existing == null ? null : existing.snapshot();
         if (name == null || race == null || subculture == null || gender == null
+                || appearance == null || calling == null || originDescription == null
+                || mannerisms == null || currentGoal == null || backstory == null
                 || (name.equalsIgnoreCase(CharacterCard.DEFAULT_NAME)
                 && !name.equals(CharacterCard.DEFAULT_NAME))) {
             return new ForumCharacterEditResult(Status.INVALID, previous);
@@ -152,7 +166,8 @@ public final class CharacterServiceImpl implements CharacterService {
         }
 
         boolean sameFields = previous != null && sameForumFields(previous, name, race,
-                subculture, edit.age(), gender);
+                subculture, edit.age(), gender, appearance, calling, originDescription,
+                mannerisms, currentGoal, backstory, edit.showStoryPublicly());
         if (existing == null) {
             if (edit.expectedCharacterId() != null) {
                 return new ForumCharacterEditResult(Status.STALE, null);
@@ -189,6 +204,13 @@ public final class CharacterServiceImpl implements CharacterService {
         candidate.setSubculture(subculture);
         candidate.setAge(edit.age());
         candidate.setGender(gender);
+        candidate.setAppearance(appearance);
+        candidate.setCalling(calling);
+        candidate.setOriginDescription(originDescription);
+        candidate.setMannerisms(mannerisms);
+        candidate.setCurrentGoal(currentGoal);
+        candidate.setBackstory(backstory);
+        candidate.setShowStoryPublicly(edit.showStoryPublicly());
         if (!cardWriter.test(candidate)) {
             return new ForumCharacterEditResult(Status.STORAGE_FAILED, previous);
         }
@@ -218,10 +240,21 @@ public final class CharacterServiceImpl implements CharacterService {
     }
 
     private static boolean sameForumFields(CharacterRecord current, String name, String race,
-                                           String subculture, int age, String gender) {
+                                           String subculture, int age, String gender,
+                                           String appearance, String calling,
+                                           String originDescription, String mannerisms,
+                                           String currentGoal, String backstory,
+                                           boolean showStoryPublicly) {
         return current.name().equals(name) && current.race().equals(race)
                 && current.subculture().equals(subculture) && current.age() == age
-                && current.gender().equals(gender);
+                && current.gender().equals(gender)
+                && current.appearance().equals(appearance)
+                && current.calling().equals(calling)
+                && current.originDescription().equals(originDescription)
+                && current.mannerisms().equals(mannerisms)
+                && current.currentGoal().equals(currentGoal)
+                && current.backstory().equals(backstory)
+                && current.showStoryPublicly() == showStoryPublicly;
     }
 
     private static String cleanForumField(String value) {
@@ -233,6 +266,17 @@ public final class CharacterServiceImpl implements CharacterService {
             return null;
         }
         return cleaned;
+    }
+
+    private static String cleanForumStoryField(String value, int maxCodePoints) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return CharacterRecord.cleanStoryText(value, maxCodePoints);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public boolean hasArchivedDeath(TrueDeathContext death) {

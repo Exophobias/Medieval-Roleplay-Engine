@@ -110,6 +110,9 @@ class ForumCharacterEditTest {
         CharacterCard active = CharacterCard.newDraft(fixture.player, "Player", 100L);
         active.setName("Aldric");
         active.setRace("Human");
+        active.setOriginDescription("A village by the river.\nFar from the capital.");
+        active.setBackstory("The long road home.");
+        active.setShowStoryPublicly(true);
         fixture.cards.put(active);
         CharacterRecord before = active.snapshot();
         UUID approver = UUID.randomUUID();
@@ -125,6 +128,42 @@ class ForumCharacterEditTest {
         assertNotEquals(before.characterId(), result.current().characterId());
         assertEquals(1, fixture.history.history(fixture.player).size());
         assertEquals("Human", fixture.history.history(fixture.player).getFirst().race());
+        assertEquals(before.originDescription(),
+                fixture.history.history(fixture.player).getFirst().originDescription());
+        assertEquals(before.backstory(),
+                fixture.history.history(fixture.player).getFirst().backstory());
+        assertTrue(fixture.history.history(fixture.player).getFirst().showStoryPublicly());
+        assertEquals("", result.current().originDescription());
+        assertFalse(result.current().showStoryPublicly());
+    }
+
+    @Test
+    void storyOnlyEditPreservesIdentityAndDoesNotStartNameCooldown() {
+        Fixture fixture = fixture(ignored -> true);
+        CharacterCard active = CharacterCard.newDraft(fixture.player, "Player", 100L);
+        active.setName("Aldric");
+        active.setRace("Human");
+        active.setSubculture("Northmarcher");
+        active.setAge(37);
+        active.setGender("Female");
+        fixture.cards.put(active);
+        CharacterRecord before = active.snapshot();
+        fixture.cooldowns.add(fixture.player);
+
+        ForumCharacterEdit story = new ForumCharacterEdit(fixture.player, before.characterId(),
+                before.editFingerprint(), "Aldric", "Human", "Northmarcher", 37, "Female",
+                "Dark hair", "Sailor", "Born at sea.\nRaised ashore.", "Speaks softly",
+                "Find home", "A short past.\nA longer journey.", true);
+        ForumCharacterEditResult saved = fixture.service.applyForumEdit(story);
+        assertEquals(Status.APPLIED, saved.status());
+        assertEquals(before.characterId(), saved.current().characterId());
+        assertEquals("Born at sea.\nRaised ashore.", saved.current().originDescription());
+        assertTrue(saved.current().showStoryPublicly());
+        assertTrue(fixture.startedCooldown.isEmpty());
+        assertEquals(Status.UNCHANGED, fixture.service.applyForumEdit(story).status());
+        assertEquals(Status.STALE, fixture.service.applyForumEdit(
+                edit(fixture.player, before.characterId(), before.editFingerprint(),
+                        "Aldric", "Elf")).status());
     }
 
     @Test
@@ -184,6 +223,14 @@ class ForumCharacterEditTest {
         assertEquals(Status.INVALID, fixture.service.applyForumEdit(new ForumCharacterEdit(
                 fixture.player, created.characterId(), created.editFingerprint(),
                 "Aldric", "Human", "Culture", 1_000_001, "Female")).status());
+        assertEquals(Status.INVALID, fixture.service.applyForumEdit(new ForumCharacterEdit(
+                fixture.player, created.characterId(), created.editFingerprint(),
+                "Aldric", "Human", "Culture", 37, "Female", "", "",
+                "A\r\nB", "", "", "", false)).status());
+        assertEquals(Status.INVALID, fixture.service.applyForumEdit(new ForumCharacterEdit(
+                fixture.player, created.characterId(), created.editFingerprint(),
+                "Aldric", "Human", "Culture", 37, "Female", "", "",
+                "", "", "", "x".repeat(1_001), false)).status());
         assertEquals(created, fixture.service.currentCharacter(fixture.player).orElseThrow());
     }
 

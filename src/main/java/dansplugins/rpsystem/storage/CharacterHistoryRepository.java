@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 /** Append-only, UUID-indexed repository for characters ended by approved true death. */
 public final class CharacterHistoryRepository {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
 
     private final Path historyDirectory;
     private final Logger logger;
@@ -166,7 +166,8 @@ public final class CharacterHistoryRepository {
         } catch (InvalidConfigurationException e) {
             throw new IOException("invalid YAML", e);
         }
-        if (yaml.getInt("schema-version") != SCHEMA_VERSION) {
+        int schemaVersion = yaml.getInt("schema-version");
+        if (schemaVersion != 1 && schemaVersion != SCHEMA_VERSION) {
             throw new IOException("unsupported schema version " + yaml.get("schema-version"));
         }
 
@@ -186,7 +187,14 @@ public final class CharacterHistoryRepository {
                     yaml.getString("fields.subculture", ""),
                     yaml.getInt("fields.age"),
                     yaml.getString("fields.gender", ""),
-                    yaml.getString("fields.religion", ""));
+                    yaml.getString("fields.religion", ""),
+                    schemaVersion == 1 ? "" : story(yaml, "fields.appearance"),
+                    schemaVersion == 1 ? "" : story(yaml, "fields.calling"),
+                    schemaVersion == 1 ? "" : story(yaml, "fields.origin-description"),
+                    schemaVersion == 1 ? "" : story(yaml, "fields.mannerisms"),
+                    schemaVersion == 1 ? "" : story(yaml, "fields.current-goal"),
+                    schemaVersion == 1 ? "" : story(yaml, "fields.backstory"),
+                    schemaVersion == 2 && visibility(yaml));
         } catch (IllegalArgumentException e) {
             throw new IOException("invalid character value", e);
         }
@@ -210,7 +218,30 @@ public final class CharacterHistoryRepository {
         yaml.set("fields.age", record.age());
         yaml.set("fields.gender", record.gender());
         yaml.set("fields.religion", record.religion());
+        yaml.set("fields.appearance", record.appearance());
+        yaml.set("fields.calling", record.calling());
+        yaml.set("fields.origin-description", record.originDescription());
+        yaml.set("fields.mannerisms", record.mannerisms());
+        yaml.set("fields.current-goal", record.currentGoal());
+        yaml.set("fields.backstory", record.backstory());
+        yaml.set("fields.show-story-publicly", record.showStoryPublicly());
         return yaml.saveToString();
+    }
+
+    private static String story(YamlConfiguration yaml, String path) {
+        Object value = yaml.get(path);
+        if (!(value instanceof String text)) {
+            throw new IllegalArgumentException("missing or invalid " + path);
+        }
+        return text;
+    }
+
+    private static boolean visibility(YamlConfiguration yaml) {
+        Object value = yaml.get("fields.show-story-publicly");
+        if (!(value instanceof Boolean visible)) {
+            throw new IllegalArgumentException("missing or invalid story visibility");
+        }
+        return visible;
     }
 
     private Path fileFor(UUID playerId, long endedAt) {
