@@ -6,10 +6,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Read-only character API published through Bukkit's services manager.
+ * Character API published through Bukkit's services manager.
  *
  * <p>Every returned value is an immutable snapshot and may safely be read by Plan or an
- * asynchronous web publisher. Character mutations remain owned by this plugin.
+ * asynchronous web publisher. The guarded forum edit must run on the Bukkit main thread;
+ * character storage and lifecycle mutations remain owned by this plugin.
  */
 public interface CharacterService {
 
@@ -25,4 +26,7 @@ public interface CharacterService {
 
     /** Snapshot of every immutable ended record, newest first. */
     Collection<CharacterRecord> endedCharacters();
+
+    /** Applies one verified forum edit to the current card, creating an initial card if absent. */
+    ForumCharacterEditResult applyForumEdit(ForumCharacterEdit edit);
 }

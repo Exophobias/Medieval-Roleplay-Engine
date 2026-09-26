@@ -1,5 +1,10 @@
 package dansplugins.rpsystem.api;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -71,6 +76,40 @@ public record CharacterRecord(
 
     public boolean isConfigured() {
         return !name.isBlank() && !"defaultName".equals(name);
+    }
+
+    /**
+     * Opaque revision of the five forum-editable fields and immutable current-card identity.
+     * Religion and the cached Minecraft account name remain outside this editor's conflict scope.
+     */
+    public String editFingerprint() {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update("MRE-forum-edit-v1".getBytes(StandardCharsets.US_ASCII));
+            updateUuid(digest, characterId);
+            updateUuid(digest, playerId);
+            digest.update(ByteBuffer.allocate(Long.BYTES).putLong(createdAt).array());
+            updateString(digest, name);
+            updateString(digest, race);
+            updateString(digest, subculture);
+            digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(age).array());
+            updateString(digest, gender);
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
+    }
+
+    private static void updateUuid(MessageDigest digest, UUID value) {
+        digest.update(ByteBuffer.allocate(2 * Long.BYTES)
+                .putLong(value.getMostSignificantBits())
+                .putLong(value.getLeastSignificantBits()).array());
+    }
+
+    private static void updateString(MessageDigest digest, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+        digest.update(bytes);
     }
 
     /**

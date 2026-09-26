@@ -9,7 +9,6 @@ import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-import static org.bukkit.Bukkit.getServer;
 
 public class CardCommand {
     private final MedievalRoleplayEngine medievalRoleplayEngine;
@@ -77,7 +76,7 @@ public class CardCommand {
             return;
         }
 
-        if (medievalRoleplayEngine.ephemeralData.getPlayersOnNameChangeCooldown().contains(player.getUniqueId())) {
+        if (medievalRoleplayEngine.isNameChangeOnCooldown(player.getUniqueId())) {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "You must wait before changing your name again!");
             return;
         }
@@ -96,20 +95,7 @@ public class CardCommand {
         }
         player.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor() + "Name set! Type /card to see changes.");
 
-        int changeNameCooldown = Math.max(0,
-                medievalRoleplayEngine.configService.getInt("changeNameCooldown"));
-        if (changeNameCooldown != 0) {
-            medievalRoleplayEngine.ephemeralData.getPlayersOnNameChangeCooldown().add(player.getUniqueId());
-            UUID playerId = player.getUniqueId();
-            getServer().getScheduler().runTaskLater(medievalRoleplayEngine, () -> {
-                medievalRoleplayEngine.ephemeralData.getPlayersOnNameChangeCooldown().remove(playerId);
-                Player online = getServer().getPlayer(playerId);
-                if (online != null) {
-                    online.sendMessage(medievalRoleplayEngine.colorChecker.getPositiveAlertColor()
-                            + "You can now change your character's name again.");
-                }
-            }, changeNameCooldown * 20L);
-        }
+        medievalRoleplayEngine.beginNameChangeCooldown(player.getUniqueId());
     }
 
     public void changeRace(CommandSender sender, String[] args) {

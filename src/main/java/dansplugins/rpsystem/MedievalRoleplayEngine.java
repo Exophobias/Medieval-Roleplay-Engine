@@ -53,7 +53,10 @@ public class MedievalRoleplayEngine extends JavaPlugin {
             new CharacterHistoryRepository(getDataFolder().toPath(), getLogger());
     public final CharacterServiceImpl characterService = new CharacterServiceImpl(
             cardRepository, characterHistoryRepository, storageService,
-            this::publishCharacterEnded, getLogger());
+            this::publishCharacterEnded, this::publishCharacterCreated,
+            this::publishCharacterUpdated, this::isNameChangeOnCooldown,
+            this::beginNameChangeCooldown, Bukkit::isPrimaryThread,
+            playerId -> Bukkit.getOfflinePlayer(playerId).getName(), getLogger());
 
     private TrueDeathIntegration trueDeathIntegration;
     private PlanIntegration planIntegration;
@@ -159,9 +162,33 @@ public class MedievalRoleplayEngine extends JavaPlugin {
             return false;
         }
         cardRepository.put(card); // refreshes secondary indexes, including the cached account name
+        publishCharacterUpdated(previous, current);
+        return true;
+    }
+
+    private void publishCharacterUpdated(CharacterRecord previous, CharacterRecord current) {
         getServer().getPluginManager().callEvent(new CharacterUpdatedEvent(previous, current));
         refreshCharacterViews(current.playerId());
-        return true;
+    }
+
+    public boolean isNameChangeOnCooldown(UUID playerId) {
+        return ephemeralData.getPlayersOnNameChangeCooldown().contains(playerId);
+    }
+
+    public void beginNameChangeCooldown(UUID playerId) {
+        int seconds = Math.max(0, configService.getInt("changeNameCooldown"));
+        if (seconds == 0) {
+            return;
+        }
+        ephemeralData.getPlayersOnNameChangeCooldown().add(playerId);
+        getServer().getScheduler().runTaskLater(this, () -> {
+            ephemeralData.getPlayersOnNameChangeCooldown().remove(playerId);
+            org.bukkit.entity.Player online = getServer().getPlayer(playerId);
+            if (online != null) {
+                online.sendMessage(colorChecker.getPositiveAlertColor()
+                        + "You can now change your character's name again.");
+            }
+        }, seconds * 20L);
     }
 
     public void publishCharacterCreated(CharacterRecord character) {

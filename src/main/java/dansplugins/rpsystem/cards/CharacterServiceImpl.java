@@ -3,6 +3,9 @@ package dansplugins.rpsystem.cards;
 import dansplugins.rpsystem.api.CharacterRecord;
 import dansplugins.rpsystem.api.CharacterService;
 import dansplugins.rpsystem.api.CharacterStatus;
+import dansplugins.rpsystem.api.ForumCharacterEdit;
+import dansplugins.rpsystem.api.ForumCharacterEditResult;
+import dansplugins.rpsystem.api.ForumCharacterEditResult.Status;
 import dansplugins.rpsystem.api.event.CharacterEndedEvent;
 import dansplugins.rpsystem.storage.CharacterHistoryRepository;
 import dansplugins.rpsystem.storage.StorageService;
@@ -14,26 +17,44 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/** Character read API plus the single internal lifecycle transition used by TrueDeath. */
+/** Character reads, guarded forum edits, and the internal TrueDeath transition. */
 public final class CharacterServiceImpl implements CharacterService {
 
     private final CardRepository current;
     private final CharacterHistoryRepository history;
     private final Predicate<CharacterCard> cardWriter;
     private final Consumer<CharacterEndedEvent> eventSink;
+    private final Consumer<CharacterRecord> createdSink;
+    private final BiConsumer<CharacterRecord, CharacterRecord> updatedSink;
+    private final Predicate<UUID> nameOnCooldown;
+    private final Consumer<UUID> beginNameCooldown;
+    private final BooleanSupplier mainThread;
+    private final Function<UUID, String> knownPlayerName;
+    private final Runnable manifestWriter;
     private final Logger logger;
 
     public CharacterServiceImpl(CardRepository current,
                                 CharacterHistoryRepository history,
                                 StorageService storage,
                                 Consumer<CharacterEndedEvent> eventSink,
+                                Consumer<CharacterRecord> createdSink,
+                                BiConsumer<CharacterRecord, CharacterRecord> updatedSink,
+                                Predicate<UUID> nameOnCooldown,
+                                Consumer<UUID> beginNameCooldown,
+                                BooleanSupplier mainThread,
+                                Function<UUID, String> knownPlayerName,
                                 Logger logger) {
-        this(current, history, storage::saveCard, eventSink, logger);
+        this(current, history, storage::saveCard, eventSink, createdSink, updatedSink,
+                nameOnCooldown, beginNameCooldown, mainThread, knownPlayerName,
+                storage::saveCardFileNames, logger);
     }
 
     CharacterServiceImpl(CardRepository current,
@@ -41,10 +62,34 @@ public final class CharacterServiceImpl implements CharacterService {
                          Predicate<CharacterCard> cardWriter,
                          Consumer<CharacterEndedEvent> eventSink,
                          Logger logger) {
+        this(current, history, cardWriter, eventSink, ignored -> { },
+                (ignoredPrevious, ignoredCurrent) -> { }, ignored -> false,
+                ignored -> { }, () -> true, ignored -> "", () -> { }, logger);
+    }
+
+    CharacterServiceImpl(CardRepository current,
+                         CharacterHistoryRepository history,
+                         Predicate<CharacterCard> cardWriter,
+                         Consumer<CharacterEndedEvent> eventSink,
+                         Consumer<CharacterRecord> createdSink,
+                         BiConsumer<CharacterRecord, CharacterRecord> updatedSink,
+                         Predicate<UUID> nameOnCooldown,
+                         Consumer<UUID> beginNameCooldown,
+                         BooleanSupplier mainThread,
+                         Function<UUID, String> knownPlayerName,
+                         Runnable manifestWriter,
+                         Logger logger) {
         this.current = Objects.requireNonNull(current, "current");
         this.history = Objects.requireNonNull(history, "history");
         this.cardWriter = Objects.requireNonNull(cardWriter, "cardWriter");
         this.eventSink = Objects.requireNonNull(eventSink, "eventSink");
+        this.createdSink = Objects.requireNonNull(createdSink, "createdSink");
+        this.updatedSink = Objects.requireNonNull(updatedSink, "updatedSink");
+        this.nameOnCooldown = Objects.requireNonNull(nameOnCooldown, "nameOnCooldown");
+        this.beginNameCooldown = Objects.requireNonNull(beginNameCooldown, "beginNameCooldown");
+        this.mainThread = Objects.requireNonNull(mainThread, "mainThread");
+        this.knownPlayerName = Objects.requireNonNull(knownPlayerName, "knownPlayerName");
+        this.manifestWriter = Objects.requireNonNull(manifestWriter, "manifestWriter");
         this.logger = Objects.requireNonNull(logger, "logger");
     }
 
@@ -76,6 +121,118 @@ public final class CharacterServiceImpl implements CharacterService {
     @Override
     public Collection<CharacterRecord> endedCharacters() {
         return history.all();
+    }
+
+    @Override
+    public synchronized ForumCharacterEditResult applyForumEdit(ForumCharacterEdit edit) {
+        if (!mainThread.getAsBoolean()) {
+            throw new IllegalStateException("Forum character edits must run on the Bukkit main thread");
+        }
+        if (edit == null || edit.playerId() == null || edit.age() < 0
+                || edit.age() > CharacterRecord.MAX_PUBLIC_AGE
+                || (edit.expectedCharacterId() == null) != (edit.expectedFingerprint() == null)
+                || (edit.expectedFingerprint() != null
+                && !edit.expectedFingerprint().matches("[0-9a-f]{64}"))) {
+            return new ForumCharacterEditResult(Status.INVALID, null);
+        }
+
+        String name = cleanForumField(edit.name());
+        String race = cleanForumField(edit.race());
+        String subculture = cleanForumField(edit.subculture());
+        String gender = cleanForumField(edit.gender());
+        CharacterCard existing = current.getCard(edit.playerId());
+        CharacterRecord previous = existing == null ? null : existing.snapshot();
+        if (name == null || race == null || subculture == null || gender == null
+                || (name.equalsIgnoreCase(CharacterCard.DEFAULT_NAME)
+                && !name.equals(CharacterCard.DEFAULT_NAME))) {
+            return new ForumCharacterEditResult(Status.INVALID, previous);
+        }
+        if (name.isBlank()) {
+            name = CharacterCard.DEFAULT_NAME;
+        }
+
+        boolean sameFields = previous != null && sameForumFields(previous, name, race,
+                subculture, edit.age(), gender);
+        if (existing == null) {
+            if (edit.expectedCharacterId() != null) {
+                return new ForumCharacterEditResult(Status.STALE, null);
+            }
+        } else if (edit.expectedCharacterId() == null) {
+            return new ForumCharacterEditResult(
+                    sameFields ? Status.UNCHANGED : Status.STALE, previous);
+        } else if (!existing.getCharacterId().equals(edit.expectedCharacterId())) {
+            return new ForumCharacterEditResult(Status.STALE, previous);
+        } else if (!previous.editFingerprint().equals(edit.expectedFingerprint())) {
+            return new ForumCharacterEditResult(
+                    sameFields ? Status.UNCHANGED : Status.STALE, previous);
+        } else if (sameFields) {
+            return new ForumCharacterEditResult(Status.UNCHANGED, previous);
+        }
+
+        if (previous != null && previous.status() == CharacterStatus.ACTIVE
+                && CharacterCard.DEFAULT_NAME.equals(name)) {
+            return new ForumCharacterEditResult(Status.INVALID, previous);
+        }
+        boolean nameChanged = previous == null
+                ? !CharacterCard.DEFAULT_NAME.equals(name)
+                : !previous.name().equals(name);
+        if (nameChanged && nameOnCooldown.test(edit.playerId())) {
+            return new ForumCharacterEditResult(Status.NAME_COOLDOWN, previous);
+        }
+
+        CharacterCard candidate = existing == null
+                ? CharacterCard.newDraft(edit.playerId(), knownPlayerName.apply(edit.playerId()),
+                        Math.max(1L, System.currentTimeMillis()))
+                : CharacterCard.fromLines(existing.serializedLines(), existing.getCreatedAt());
+        candidate.setName(name);
+        candidate.setRace(race);
+        candidate.setSubculture(subculture);
+        candidate.setAge(edit.age());
+        candidate.setGender(gender);
+        if (!cardWriter.test(candidate)) {
+            return new ForumCharacterEditResult(Status.STORAGE_FAILED, previous);
+        }
+
+        current.put(candidate);
+        if (existing == null) {
+            manifestWriter.run();
+        }
+        CharacterRecord saved = candidate.snapshot();
+        if (nameChanged) {
+            try {
+                beginNameCooldown.accept(edit.playerId());
+            } catch (RuntimeException e) {
+                logger.log(Level.WARNING, "Could not start the name-change cooldown", e);
+            }
+        }
+        try {
+            if (previous == null) {
+                createdSink.accept(saved);
+            } else {
+                updatedSink.accept(previous, saved);
+            }
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "A forum character edit consumer failed", e);
+        }
+        return new ForumCharacterEditResult(Status.APPLIED, saved);
+    }
+
+    private static boolean sameForumFields(CharacterRecord current, String name, String race,
+                                           String subculture, int age, String gender) {
+        return current.name().equals(name) && current.race().equals(race)
+                && current.subculture().equals(subculture) && current.age() == age
+                && current.gender().equals(gender);
+    }
+
+    private static String cleanForumField(String value) {
+        if (value == null || value.codePoints().anyMatch(Character::isISOControl)) {
+            return null;
+        }
+        String cleaned = value.trim();
+        if (cleaned.length() > 128) {
+            return null;
+        }
+        return cleaned;
     }
 
     public boolean hasArchivedDeath(TrueDeathContext death) {

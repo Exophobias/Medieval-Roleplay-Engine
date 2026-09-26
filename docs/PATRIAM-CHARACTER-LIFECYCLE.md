@@ -13,9 +13,10 @@ one plugin.
 | Local/global/OOC/whisper/yell chat | PatriamChat | No competing MRE commands |
 | Couriers and mail | PatriamPost | No `/bird` registration |
 | Minecraft `/title` command | Paper/Minecraft | No MRE registration |
-| TrueDeath declaration, objections and staff approval | PatriamUtils | Optional read-only event/service input |
+| TrueDeath declaration and completion | PatriamUtils | Optional read-only event/service input |
 | Self/staff analytics | Plan | Implemented read-only DataExtension |
 | Public current and past characters | NamelessMC through PatriamNamelessBridge | Implemented privacy-filtered full snapshot |
+| Private owner editing of the current card | MRE, via PatriamNamelessBridge and NamelessMC | Guarded five-field write API; MRE validates and persists |
 
 MRE must never register `/truedeath`. PatriamUtils owns the irreversible workflow and persists the
 approval before publishing its non-cancellable `TrueDeathEvent`. MRE consumes that outcome; it does
@@ -23,7 +24,7 @@ not decide whether a death is valid and PatriamUtils must not depend on MRE.
 
 ## Runtime and dependency contract
 
-The fork compiles and deploys against Java 25 and Paper 26.2 build 92. PlaceholderAPI, Plan and
+The fork compiles and deploys against Java 25 and Paper 26.3. PlaceholderAPI, Plan and
 PatriamUtils are `softdepend` entries: MRE must still start when any of them is absent.
 
 - PlaceholderAPI enables public-safe current-card placeholders.
@@ -69,7 +70,11 @@ forced file contents, and atomic replacement where the filesystem supports it.
 
 ## Migration rules
 
-1. Stop the server and make a recoverable copy of the complete MRE data folder.
+The current server already uses config schema 1, so this forum-editor release makes no config
+migration. The older schema-0 migrator still creates a backup automatically; do not run that legacy
+migration without an explicit backup request or a separate compliant migrator update.
+
+1. Stop the server and preserve the complete MRE data folder unchanged.
 2. Install the fork without deleting `cards.txt` or UUID card files.
 3. Keep `chatFeaturesEnabled: false`; an old config which already says `true` is not overwritten.
 4. Start once and inspect the log before allowing character edits or TrueDeath approval.
@@ -110,13 +115,14 @@ After the baseline:
 - multiple unprocessed deaths for one account are blocked for manual review when one current card
   cannot prove which character belonged to each death.
 
-Do not delete or hand-edit the journal to force migration. Restore the pre-deployment backup or
-perform a reviewed repair which preserves the archived character IDs and approval timestamps.
+Do not delete or hand-edit the journal to force migration. A reviewed repair must preserve the
+archived character IDs and approval timestamps.
 
 ## Privacy projections
 
-The in-JVM character service returns immutable operational records. A consumer must still build an
-audience-specific projection; having API access does not make every field suitable for publication.
+The in-JVM character service returns immutable operational records and accepts a guarded edit of the
+five current-card fields. A consumer must still build an audience-specific projection; having API
+access does not make every field suitable for publication.
 
 - PlaceholderAPI has no reliable viewer context. Expose only complete, non-secret current roleplay
   fields and return empty output for draft/default/out-of-range values. Never place moderation or
@@ -137,7 +143,8 @@ Plan web permissions are deliberately coarse: `access.player.self` opens one's o
 `access.player` opens anyone's, and `page.player.plugins` exposes all extension tabs on a permitted
 page. A broad player grant could therefore expose unrelated Absence or Devotion data. Ordinary
 players should receive self-page access only; cross-player and server extension pages remain staff
-permissions. Plan DataExtensions are display-only, so card edits and lifecycle actions stay in game.
+permissions. Plan DataExtensions are display-only. Current-card edits may be made through the
+owner's verified forum page; lifecycle actions stay with PatriamUtils and MRE.
 
 The implemented extension consumes immutable MRE snapshots and publishes only complete public
 fields. Player data contains current name, race, subculture, age and gender plus ended-character
@@ -164,9 +171,26 @@ snapshots remain the source of self-healing even if an event-triggered upload is
 lower latency. The official Nameless plugin's placeholder sender is not a substitute for this route,
 and XenForo/legacy `ncms_*` tables are migration evidence rather than the current target.
 
+## NamelessMC: private current-card editor
+
+The separate private character-state snapshot includes every current `DRAFT` and `ACTIVE` card,
+including incomplete cards omitted from the public profile. A signed-in forum owner must have one
+unique verified Minecraft link. The forum page takes the expected character ID and opaque edit
+fingerprint only from that server-authored private state, then queues the owner's five editable
+fields: name, race, subculture, age and gender. Past cards are shown from immutable history and
+cannot be edited or selected as a replacement for an active card. The legacy religion field is
+preserved during forum edits but is not exposed in the editor.
+
+PatriamNamelessBridge leases queued requests over outbound authenticated HTTP, journals the request
+before applying it, and calls `CharacterService.applyForumEdit` on the Bukkit main thread. MRE
+rejects a stale character ID or fingerprint, invalid fields, an active-to-draft name reset and a
+name edit still on the same cooldown as `/card name`. It creates a first card only when no current
+card exists; an existing draft keeps its character ID. A successful save precedes change events and
+the next private snapshot. TrueDeath alone archives a character and installs the next draft.
+
 ## Deployment acceptance checks
 
-- Paper reports 26.2 build 92 and the JVM reports Java 25.
+- Paper reports 26.3 and the JVM reports Java 25.
 - Only `/card`, `/emote`, `/me`, `/roll`, `/dice`, `/rphelp` and `/rpconfig` are registered by MRE.
 - PatriamChat, PatriamPost and vanilla retain their command namespaces regardless of plugin order.
 - MRE starts successfully with Plan, PlaceholderAPI and PatriamUtils independently absent.
@@ -175,4 +199,6 @@ and XenForo/legacy `ncms_*` tables are migration evidence rather than the curren
 - An approved post-baseline TrueDeath produces exactly one immutable history record and one fresh
   draft, including after a restart/replay.
 - No default-only legacy card is presented as historical fact.
+- A linked owner can edit the exact current draft or active card on the forum; stale, archived and
+  active-replacement requests leave character storage unchanged.
 - PAPI, Plan and website views pass their audience/privacy checks before production exposure.

@@ -4,6 +4,8 @@ import com.djrapitops.plan.extension.extractor.ExtensionExtractor;
 import com.djrapitops.plan.extension.table.Table;
 import dansplugins.rpsystem.api.CharacterRecord;
 import dansplugins.rpsystem.api.CharacterService;
+import dansplugins.rpsystem.api.ForumCharacterEdit;
+import dansplugins.rpsystem.api.ForumCharacterEditResult;
 import dansplugins.rpsystem.api.CharacterStatus;
 import org.junit.jupiter.api.Test;
 
@@ -190,6 +192,11 @@ class CharacterPlanExtensionTest {
         @Override
         public Collection<CharacterRecord> endedCharacters() {
             return records.stream().filter(record -> !record.isCurrent()).toList();
+        }
+
+        @Override
+        public ForumCharacterEditResult applyForumEdit(ForumCharacterEdit edit) {
+            throw new UnsupportedOperationException("read-only test service");
         }
     }
 }
