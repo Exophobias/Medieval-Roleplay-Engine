@@ -2,12 +2,10 @@ package dansplugins.rpsystem;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
-import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.plugin.SimplePluginManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,8 +17,8 @@ import java.util.logging.Logger;
 /**
  * Installs a minimal {@link Server} into {@link Bukkit} so that Bukkit's own permission classes
  * ({@link Permission}, {@code PermissibleBase}, {@code PermissionAttachment}) can be exercised
- * off a live server. Only a real {@link SimplePluginManager} is provided; every other server call
- * returns a default value.
+ * off a live server. A small permission registry supplies definitions/defaults while Bukkit's real
+ * PermissibleBase and PermissionAttachment perform resolution; other calls return defaults.
  *
  * <p>{@link Bukkit#setServer} accepts a single server per JVM, and Surefire runs every test class
  * in one JVM, so installation is idempotent and the plugin manager is shared between tests.</p>
@@ -132,7 +130,20 @@ final class BukkitTestServer {
                         }
                     }
                 });
-        pluginManager[0] = new SimplePluginManager(server, new SimpleCommandMap(server, new java.util.HashMap<>()));
+        // Paper's SimplePluginManager is now a facade for server-only internals. Supply only
+        // registry access here; permission attachment/child resolution stays in real Bukkit code.
+        java.util.Map<String, Permission> permissions = new java.util.LinkedHashMap<>();
+        pluginManager[0] = (PluginManager) Proxy.newProxyInstance(PluginManager.class.getClassLoader(),
+                new Class<?>[]{PluginManager.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "addPermission" -> { permissions.put(((Permission) args[0]).getName(), (Permission) args[0]); yield null; }
+                    case "getPermission" -> permissions.get(args[0].toString().toLowerCase(java.util.Locale.ROOT));
+                    case "getPermissions" -> java.util.Set.copyOf(permissions.values());
+                    case "getDefaultPermissions" -> permissions.values().stream()
+                            .filter(permission -> permission.getDefault().getValue((boolean) args[0]))
+                            .collect(java.util.stream.Collectors.toSet());
+                    case "getPermissionSubscriptions", "getDefaultPermSubscriptions" -> java.util.Set.of();
+                    default -> defaultValue(method.getReturnType());
+                });
         return server;
     }
 
