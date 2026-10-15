@@ -37,27 +37,8 @@ public class CardCommand {
     }
 
     public void showHelpMessage(CommandSender sender) {
-        if (!(sender instanceof Player)) {
-            return;
-        }
-        Player player = (Player) sender;
-
-        if (player.hasPermission("rp.card.help") || player.hasPermission("rp.card.*") || player.hasPermission("rp.default")) {
-            sender.sendMessage(ChatColor.BOLD + "" + medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + " == " + "Character Card Commands" + " == ");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card - View your character card.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card lookup (player) - View the character card of a specific player.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card name (name) - Change your character's name.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card nationality (nationality|clear) - Set or clear your character's nationality.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card subculture (subculture) - Change your character's subculture.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card age (age) - Change your character's age.");
-            sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card gender (sex/gender|clear) - Set or clear your character's sex/gender.");
-            if (medievalRoleplayEngine.getConfig().getBoolean("legacyReligionFieldEnabled", false)) {
-                sender.sendMessage(medievalRoleplayEngine.colorChecker.getNeutralAlertColor() + "/card religion (religion) - Change the legacy biography religion field.");
-            }
-        }
-        else {
-            player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sorry! In order to use this command, you need the following permission: 'rp.card.help'");
-        }
+        new dansplugins.rpsystem.commands.help.HelpCommand(medievalRoleplayEngine)
+                .show(sender, new String[0], true);
     }
 
     public void changeName(CommandSender sender, String[] args) {

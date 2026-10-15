@@ -222,4 +222,18 @@ public class MedievalRoleplayEngine extends JavaPlugin {
             getLogger().warning("Legacy MRE chat is disabled in the Patriam fork; use PatriamChat.");
         }
     }
+    @Override
+    public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        var help = new dansplugins.rpsystem.commands.help.HelpCommand(this);
+        boolean cards = command.getName().equalsIgnoreCase("card");
+        boolean root = command.getName().equalsIgnoreCase("rphelp");
+        if (args.length == 0) return java.util.List.of();
+        if ((root && args.length == 1) || (cards && args.length == 2 && args[0].equalsIgnoreCase("help"))) {
+            java.util.List<String> result = new java.util.ArrayList<>();
+            if (help.hasStaff(sender, cards) && "staff".startsWith(args[args.length - 1].toLowerCase(java.util.Locale.ROOT))) result.add("staff");
+            return result;
+        }
+        if (cards && args.length == 1) return help.suggestions(sender, true, args[0]);
+        return java.util.List.of();
+    }
 }

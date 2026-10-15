@@ -31,6 +31,14 @@ development-only `test` key. Other unknown keys are retained.
 
 ---
 
+## Upstream usage reporting
+
+The upstream trace-client source is retained for history, but the Patriam release does not
+instantiate it or send startup/command events. No usage-reporting section is added to operator
+configuration, and this release does not create shared trace files.
+
+---
+
 ## version
 
 **Type:** string  

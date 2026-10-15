@@ -19,7 +19,8 @@ public class CommandService {
 
         if (label.equalsIgnoreCase("rphelp")) {
             HelpCommand command = new HelpCommand(medievalRoleplayEngine);
-            command.showListOfCommands(sender);
+            command.show(sender, args.length > 0 && args[0].equalsIgnoreCase("help")
+                    ? java.util.Arrays.copyOfRange(args, 1, args.length) : args, false);
             return true;
         }
 
@@ -32,7 +33,7 @@ public class CommandService {
             else {
 
                 if (args[0].equalsIgnoreCase("help")) {
-                    command.showHelpMessage(sender);
+                    new HelpCommand(medievalRoleplayEngine).show(sender, java.util.Arrays.copyOfRange(args, 1, args.length), true);
                     return true;
                 }
                 else if (args[0].equalsIgnoreCase("lookup")) {
@@ -70,7 +71,8 @@ public class CommandService {
                     return command.forceLoad(sender);
                 }
 
-                sender.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sub-commands: help, lookup, name, nationality, subculture, religion, age, gender, forcesave, forceload");
+                sender.sendMessage(org.bukkit.ChatColor.RED + "Unknown subcommand.");
+                new HelpCommand(medievalRoleplayEngine).show(sender, new String[0], true);
             }
         }
 
@@ -80,6 +82,10 @@ public class CommandService {
         }
 
         if (label.equalsIgnoreCase("rpconfig")) {
+            if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
+                new HelpCommand(medievalRoleplayEngine).show(sender, new String[]{"staff"}, false);
+                return true;
+            }
             ConfigCommand command = new ConfigCommand(medievalRoleplayEngine);
             command.handleConfigAccess(sender, args);
             return true;
