@@ -123,7 +123,7 @@ final class BukkitTestServer {
                         }
                     }
                 });
-        pluginManager[0] = new SimplePluginManager(server, new SimpleCommandMap(server));
+        pluginManager[0] = new SimplePluginManager(server, new SimpleCommandMap(server, new java.util.HashMap<>()));
         return server;
     }
 
