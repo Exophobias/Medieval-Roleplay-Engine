@@ -36,7 +36,16 @@ final class BukkitTestServer {
     /** Installs the stub server if it is not already installed and returns its plugin manager. */
     static synchronized PluginManager install() {
         if (Bukkit.getServer() == null) {
-            Bukkit.setServer(createServer());
+            // Bukkit.setServer now logs ServerBuildInfo from a server-only service provider.
+            // This off-server fixture exercises the real permission classes without claiming
+            // to be a running Paper distribution.
+            try {
+                java.lang.reflect.Field field = Bukkit.class.getDeclaredField("server");
+                field.setAccessible(true);
+                field.set(null, createServer());
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Could not install the permission fixture", exception);
+            }
         }
         return Bukkit.getServer().getPluginManager();
     }
