@@ -6,7 +6,8 @@ optional integrations, nationality, strict schema-1 configuration and Paper ship
 Upstream trace-client source/history is retained but deliberately not wired into startup or
 commands: no telemetry configuration, network worker or shared trace file is enabled.
 Upstream append-default configuration handling and default permission changes are superseded by
-Patriam strict migration and the existing descriptor. The two upstream legacy descriptor tests
-are superseded by PluginDescriptorTest; upstream argument/color utility checks use Jupiter.
+Patriam strict migration and the existing descriptor. The upstream wildcard permission-resolution regression is retained and adapted to nationality
+and Patriam default-false wildcard policy. The legacy source/guide descriptor contract is
+superseded by PluginDescriptorTest; upstream argument/color utility checks use Jupiter.
 In-game help filters the same permission alternatives as execution, separates staff pages and
 supports console documentation. Runtime/client acceptance is recorded in the shared v7 handoff.
