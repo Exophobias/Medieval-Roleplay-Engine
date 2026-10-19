@@ -111,3 +111,6 @@ buildNumber.properties
 
 # Common working directory
 run/
+
+# Exact optional public compile contract; never a runtime plugin copy.
+!libs/welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.jar

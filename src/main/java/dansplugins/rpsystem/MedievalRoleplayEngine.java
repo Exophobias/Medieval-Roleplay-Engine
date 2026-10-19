@@ -62,6 +62,8 @@ public class MedievalRoleplayEngine extends JavaPlugin {
     private PlanIntegration planIntegration;
     private PlaceholderAPI placeholderExpansion;
     private boolean dataLoaded;
+    private AutoCloseable welcomeFeature = () -> { };
+    public boolean featureReady() { return isEnabled() && dataLoaded; }
 
     @Override
     public void onEnable() {
@@ -102,10 +104,12 @@ public class MedievalRoleplayEngine extends JavaPlugin {
             trueDeathIntegration = new TrueDeathIntegration(this);
             trueDeathIntegration.registerIfAvailable();
         }
+        welcomeFeature = dansplugins.rpsystem.welcome.WelcomeFeatureIntegration.start(this);
     }
 
     @Override
     public void onDisable() {
+        dansplugins.rpsystem.welcome.WelcomeFeatureIntegration.close(this, welcomeFeature);
         if (trueDeathIntegration != null) {
             trueDeathIntegration.close();
             trueDeathIntegration = null;

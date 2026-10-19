@@ -10,6 +10,7 @@ api-version: "26.2"
 # All integrations are optional. Listing them here only establishes safe load order when present.
 # PatriamChat owns chat, PatriamPost owns couriers, and vanilla owns /title.
 softdepend:
+  - PatriamWelcome
   - PlaceholderAPI
   - Plan
   - PatriamUtils

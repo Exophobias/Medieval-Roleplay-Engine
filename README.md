@@ -106,3 +106,10 @@ available under GPL-3.0 when modified binaries are distributed; no additional re
 added by the Patriam profile.
 
 Upstream bStats project: [Medieval Roleplay Engine 8996](https://bstats.org/plugin/bukkit/Medieval%20Roleplay%20Engine/8996).
+
+
+### Optional Patriam feature page
+
+With PatriamWelcome 2.1.0, **Character** shows current owner status and the same permission-filtered command help used in chat, with separate staff pages. The current self card and your own story are readable under the existing card permission. Other characters, history and private third-party biographies are excluded.
+
+Welcome remains optional: only the guarded adapter links its API, and its service is withdrawn before owner shutdown. Each navigation and action requests current authority again. Parameterized help is documentation; fixed actions retain the owner command’s execution checks. No configuration or gameplay storage schema changes.

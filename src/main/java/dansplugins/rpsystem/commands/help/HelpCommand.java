@@ -9,9 +9,9 @@ import java.util.List;
 public class HelpCommand {
     private final MedievalRoleplayEngine plugin;
     public HelpCommand(MedievalRoleplayEngine plugin) { this.plugin = plugin; }
-    private record Entry(String form, String description, String permission, boolean staff) {}
+    public record Entry(String form, String description, String permission, boolean staff) {}
 
-    private List<Entry> permitted(CommandSender sender, boolean cards) {
+    public List<Entry> permitted(CommandSender sender, boolean cards) {
         List<Entry> entries = new ArrayList<>();
         if (!cards) {
             entries.add(new Entry("/rphelp [page]", "show permitted roleplay commands", "rp.help", false));
