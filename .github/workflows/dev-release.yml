@@ -44,8 +44,8 @@ jobs:
         run: |
           sha256sum -c CHECKSUMS
           mvn -B --no-transfer-progress install:install-file \
-            -Dfile=welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.jar \
-            -DpomFile=welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.pom
+            -Dfile=welcome-api/com/github/exophobias/patriamwelcome/2.1.1/patriamwelcome-2.1.1.jar \
+            -DpomFile=welcome-api/com/github/exophobias/patriamwelcome/2.1.1/patriamwelcome-2.1.1.pom
 
       - name: Build with Maven
         run: mvn clean package --batch-mode
