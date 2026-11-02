@@ -26,11 +26,11 @@ commands:
     description: Describe a nearby roleplay action.
     usage: /me <action>
   roll:
-    description: Roll a die. Defaults to a d20 if no maximum is specified.
-    usage: /roll [maximum]
+    description: Roll dice using notation such as 2d6 or 1d20+5. Defaults to a d20.
+    usage: /roll [notation]
   dice:
-    description: Roll a die. Defaults to a d20 if no maximum is specified.
-    usage: /dice [maximum]
+    description: Roll dice using notation such as 2d6 or 1d20+5. Defaults to a d20.
+    usage: /dice [notation]
   rphelp:
     description: Show Medieval Roleplay Engine help.
     usage: /rphelp

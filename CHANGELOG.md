@@ -1,5 +1,12 @@
 # Changelog
 
+## Patriam upstream refresh — 2026-11-02
+
+- Integrated official history through 862dc839 with empty-emote/permission feedback repairs and dice usage.
+- Preserved atomic current-card protection, lifecycle/privacy, strict config and separate staff help.
+- Added/adapted upstream command, chat, configuration and placeholder regression coverage.
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).

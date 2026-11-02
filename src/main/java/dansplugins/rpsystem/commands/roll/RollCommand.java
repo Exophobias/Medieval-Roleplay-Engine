@@ -23,8 +23,15 @@ public class RollCommand {
     );
 
     private final MedievalRoleplayEngine medievalRoleplayEngine;
+    private final java.util.function.IntUnaryOperator dieRoller;
+
     public RollCommand(MedievalRoleplayEngine medievalRoleplayEngine) {
+        this(medievalRoleplayEngine, sides -> ThreadLocalRandom.current().nextInt(1, sides + 1));
+    }
+
+    RollCommand(MedievalRoleplayEngine medievalRoleplayEngine, java.util.function.IntUnaryOperator dieRoller) {
         this.medievalRoleplayEngine = medievalRoleplayEngine;
+        this.dieRoller = java.util.Objects.requireNonNull(dieRoller);
     }
 
     public boolean rollDice(CommandSender sender, String[] args) {
@@ -115,7 +122,7 @@ public class RollCommand {
     private int[] rollDice(int numDice, int dieSize) {
         int[] results = new int[numDice];
         for (int i = 0; i < numDice; i++) {
-            results[i] = ThreadLocalRandom.current().nextInt(1, dieSize + 1);
+            results[i] = dieRoller.applyAsInt(dieSize);
         }
         return results;
     }

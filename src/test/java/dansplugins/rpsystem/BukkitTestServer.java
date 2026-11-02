@@ -2,16 +2,22 @@ package dansplugins.rpsystem;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
+import org.bukkit.entity.Player;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.scheduler.BukkitScheduler;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -22,17 +28,26 @@ import java.util.logging.Logger;
  *
  * <p>{@link Bukkit#setServer} accepts a single server per JVM, and Surefire runs every test class
  * in one JVM, so installation is idempotent and the plugin manager is shared between tests.</p>
+ *
+ * <p>{@link Server#getOnlinePlayers()} returns whatever was last passed to {@link #setOnlinePlayers}, which is empty
+ * until a test sets it. A test that sets it must clear it again afterwards, since the server is shared.</p>
+ *
+ * <p>{@link Server#getScheduler()} runs nothing: each {@code runTaskLater(Plugin, Runnable, long)} call is recorded
+ * and can be read with {@link #scheduledTasks()}, so a test can check the delay and then run the task itself. A test
+ * that schedules tasks must call {@link #clearScheduledTasks()} first.</p>
  */
-final class BukkitTestServer {
+public final class BukkitTestServer {
     private static final String PLUGIN_YML = "plugin.yml";
 
     private static boolean pluginYmlRegistered;
+    private static final List<Player> onlinePlayers = new ArrayList<>();
+    private static final List<ScheduledTask> scheduledTasks = new ArrayList<>();
 
     private BukkitTestServer() {
     }
 
     /** Installs the stub server if it is not already installed and returns its plugin manager. */
-    static synchronized PluginManager install() {
+    public static synchronized PluginManager install() {
         if (Bukkit.getServer() == null) {
             // Bukkit.setServer now logs ServerBuildInfo from a server-only service provider.
             // This off-server fixture exercises the real permission classes without claiming
@@ -46,6 +61,37 @@ final class BukkitTestServer {
             }
         }
         return Bukkit.getServer().getPluginManager();
+    }
+
+    /** Installs the stub server if needed and makes exactly {@code players} online, in that order. */
+    public static synchronized void setOnlinePlayers(Player... players) {
+        install();
+        onlinePlayers.clear();
+        onlinePlayers.addAll(Arrays.asList(players));
+    }
+
+    /** Installs the stub server if needed and forgets every task scheduled so far. */
+    public static synchronized void clearScheduledTasks() {
+        install();
+        scheduledTasks.clear();
+    }
+
+    /** The tasks passed to {@code runTaskLater} since the last {@link #clearScheduledTasks()}, in order. */
+    public static synchronized List<ScheduledTask> scheduledTasks() {
+        return new ArrayList<>(scheduledTasks);
+    }
+
+    /** A task handed to the stub scheduler, which never runs it. */
+    public static final class ScheduledTask {
+        public final Plugin plugin;
+        public final Runnable task;
+        public final long delayTicks;
+
+        ScheduledTask(Plugin plugin, Runnable task, long delayTicks) {
+            this.plugin = plugin;
+            this.task = task;
+            this.delayTicks = delayTicks;
+        }
     }
 
     /**
@@ -105,6 +151,7 @@ final class BukkitTestServer {
     private static Server createServer() {
         final Logger logger = Logger.getLogger(BukkitTestServer.class.getName());
         final PluginManager[] pluginManager = new PluginManager[1];
+        final BukkitScheduler scheduler = createScheduler();
         Server server = (Server) Proxy.newProxyInstance(Server.class.getClassLoader(), new Class<?>[]{Server.class},
                 new InvocationHandler() {
                     @Override
@@ -119,6 +166,10 @@ final class BukkitTestServer {
                                 return "test";
                             case "getPluginManager":
                                 return pluginManager[0];
+                            case "getOnlinePlayers":
+                                return Collections.unmodifiableList(new ArrayList<>(onlinePlayers));
+                            case "getScheduler":
+                                return scheduler;
                             case "toString":
                                 return BukkitTestServer.class.getSimpleName();
                             case "hashCode":
@@ -145,6 +196,24 @@ final class BukkitTestServer {
                     default -> defaultValue(method.getReturnType());
                 });
         return server;
+    }
+
+    private static BukkitScheduler createScheduler() {
+        return (BukkitScheduler) Proxy.newProxyInstance(BukkitScheduler.class.getClassLoader(),
+                new Class<?>[]{BukkitScheduler.class}, new InvocationHandler() {
+                    @Override
+                    public Object invoke(Object proxy, Method method, Object[] args) {
+                        if (method.getName().equals("runTaskLater") && args.length == 3
+                                && args[1] instanceof Runnable) {
+                            synchronized (BukkitTestServer.class) {
+                                scheduledTasks.add(new ScheduledTask((Plugin) args[0], (Runnable) args[1],
+                                        (Long) args[2]));
+                            }
+                            return null;
+                        }
+                        throw new AssertionError("Unexpected call to BukkitScheduler." + method.getName());
+                    }
+                });
     }
 
     private static Object defaultValue(Class<?> type) {

@@ -210,7 +210,7 @@ the current schema state, and every configuration option in chat.
 
 ### /rpconfig set \<option\> \<value\>
 
-**Description:** Change a plugin configuration option in-game and save it to `config.yml`. Only options that already exist in the configuration can be set, and the managed `version` and `config-version` metadata cannot be changed.
+**Description:** Change a plugin configuration option in-game and save it to `config.yml`. Only options that already exist in the configuration can be set, and the managed `version` and `config-version` metadata cannot be changed. Integer options reject non-numeric and negative values; `birdSpeed` must be positive. Rejection leaves the previous value unchanged.
 **Permission:** `rp.config`  
 **Usage:** `/rpconfig set <option> <value>`  
 **Example:** `/rpconfig set localChatRadius 30`
