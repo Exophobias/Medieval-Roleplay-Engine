@@ -128,9 +128,7 @@ public class MedievalRoleplayEngine extends JavaPlugin {
         }
         storageService.saveCardFileNames();
         storageService.saveCards();
-        if (configService.hasBeenAltered()) {
-            saveConfig();
-        }
+        // /rpconfig set persists each edit. Preserve intervening operator edits on shutdown.
     }
 
     @Override

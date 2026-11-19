@@ -189,7 +189,7 @@ public class CardCommand {
         }
         else {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sorry! In order to use this command, you need the following permission: 'rp.card.forcesave'");
-            return false;
+            return true;
         }
     }
 
@@ -209,7 +209,7 @@ public class CardCommand {
         }
         else {
             player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sorry! In order to use this command, you need the following permission: 'rp.card.forceload'");
-            return false;
+            return true;
         }
     }
 

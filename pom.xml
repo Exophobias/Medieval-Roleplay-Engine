@@ -6,7 +6,7 @@
 
   <groupId>dansplugins</groupId>
   <artifactId>Medieval-Roleplay-Engine</artifactId>
-  <version>2.0.0-patriam.7-SNAPSHOT</version>
+  <version>2.0.0-patriam.8-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Medieval Roleplay Engine</name>
@@ -85,6 +85,7 @@
           <!-- paper-api 26.x is Java 25 bytecode, so `release` rather than source/target: it
                pins the platform API too, instead of only the language level. -->
           <release>${java.version}</release>
+          <fork>true</fork>
         </configuration>
       </plugin>
       <plugin>

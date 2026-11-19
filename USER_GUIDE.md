@@ -50,7 +50,7 @@ Medieval Roleplay Engine splits its chat commands into two kinds.
 
 **One-off message commands** send a single message and leave your channel unchanged:
 
-- **Whisper** (`/whisper <message>`) – Sends a message visible only to players within `whisperChatRadius` blocks, and tells you how many players heard it.
+- **Whisper** (`/whisper <message>`) – Sends a message visible only to players within `whisperChatRadius` blocks, and tells you how many other players heard it.
 - **Yell** (`/yell <message>`) – Sends a message visible to players within `yellChatRadius` blocks.
 - **Emote** (`/emote <action>` or `/me <action>`) – Performs a roleplay action visible within `emoteRadius` blocks.
 - **Local OOC** (`/lo <message>`) – Out-of-character message to players within `localOOCChatRadius` blocks.
@@ -69,7 +69,7 @@ is delivered to nearby players as two messages: the spoken remainder (`Character
 
 ### Sending a Bird (Mail)
 
-Use `/bird <player> <message>` to send a private in-character message to another player. Both of you must be online and in the same world. The bird takes `distance / birdSpeed` seconds to arrive, and you can only have one bird in flight at a time. Players near the recipient are told that a bird landed, but not what it said.
+Use `/bird <player> <message>` to send a private in-character message to another player. Both of you must be online and in the same world. The bird takes `distance / birdSpeed` seconds to arrive, and you can only have one bird in flight at a time. If the server's `birdSpeed` is below 1, no bird is sent and you are told so. Players near the recipient are told that a bird landed, but not what it said.
 
 ### Rolling Dice
 

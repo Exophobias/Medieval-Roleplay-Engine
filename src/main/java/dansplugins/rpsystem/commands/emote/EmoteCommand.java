@@ -41,7 +41,7 @@ public class EmoteCommand {
                 return true;
             }
             else {
-                player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sorry! In order to use this command, you need one the following permissions: 'rp.emote', 'rp.me'");
+                player.sendMessage(medievalRoleplayEngine.colorChecker.getNegativeAlertColor() + "Sorry! In order to use this command, you need one of the following permissions: 'rp.emote', 'rp.me'");
                 return true;
             }
 

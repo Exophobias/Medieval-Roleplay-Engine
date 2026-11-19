@@ -73,6 +73,7 @@ public class CommandService {
 
                 sender.sendMessage(org.bukkit.ChatColor.RED + "Unknown subcommand.");
                 new HelpCommand(medievalRoleplayEngine).show(sender, new String[0], true);
+                return true;
             }
         }
 

@@ -22,3 +22,14 @@ to immutable public snapshots, hidden draft/religion fields and nationality. Str
 and Boolean config setters remain stronger than upstream; schema stays 1. Trace 0.7 source is
 retained unconnected, with no new telemetry worker, config or reports. Published plugin metadata
 advances to 2.0.0-patriam.7-SNAPSHOT; public character API remains compatible.
+
+November 19, 2026: integrated upstream main b2433ef (17 commits) in 2.0.0-patriam.8.
+Unknown card commands and denied staff card actions consume their response. The fork keeps
+permission-filtered help, configured-character checks and its own command ownership. The
+legacy bird-speed guard and whisper recipient fix apply to unregistered upstream handlers.
+Shutdown no longer re-saves an earlier config over edits already persisted by the operator.
+Reporting stays disconnected. Upstream tests for a mutable card list, stale cached cards,
+hard-coded save directories and reporting opt-out writes do not define fork behavior. The
+lookup, join, right-click and command fixtures use current indexed cards, durable drafts,
+public visibility and thread-safe sets. CurrentCardFilesTest and CharacterHistoryRepositoryTest
+exercise this fork's disk ownership, malformed-input and overwrite protections.
